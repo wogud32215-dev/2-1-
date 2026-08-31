@@ -1054,7 +1054,20 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(err => {
+        navigator.serviceWorker.register('/sw.js?v=' + Date.now()).then((reg) => {
+          reg.update();
+          reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+            if (installingWorker) {
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // 새로운 버전 감지 시 자동 갱신
+                  window.location.reload();
+                }
+              };
+            }
+          };
+        }).catch(err => {
           console.warn('Service Worker registration note:', err);
         });
       });
