@@ -525,9 +525,15 @@
 
   <!-- 3. 교사 관리자 포털 -->
   <div id="teacherDashboard" class="card-custom mt-4" style="display: none;">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h4 class="fw-bold mb-0 text-warning"><i class="bi bi-gear-fill"></i> 담임교사 관리자 포털</h4>
-      <button class="btn btn-outline-secondary btn-sm" onclick="closeTeacherPortal()">닫기</button>
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <h4 class="fw-bold mb-0 text-warning"><i class="bi bi-gear-fill"></i> 담임교사 관리자 포털</h4>
+        <span id="teacherSessionBadge" class="badge bg-success" style="display:none;"><i class="bi bi-phone"></i> 이 기기 자동로그인 활성</span>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-danger btn-sm" onclick="logoutTeacherSession()"><i class="bi bi-box-arrow-right"></i> 관리자 로그아웃</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="closeTeacherPortal()">닫기</button>
+      </div>
     </div>
 
     <ul class="nav nav-tabs mb-3 border-secondary">
@@ -796,6 +802,13 @@
       <div class="modal-body">
         <label class="form-label text-secondary small">관리자 비밀번호</label>
         <input type="password" id="teacherPasswordInput" class="form-control" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter') verifyTeacherLogin();">
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" id="chkTeacherAutoLogin" checked>
+          <label class="form-check-label text-white small" for="chkTeacherAutoLogin">
+            <i class="bi bi-phone"></i> <strong>이 기기(스마트폰/PC)에서 교사 로그인 유지</strong>
+            <span class="text-secondary d-block" style="font-size: 11px;">체크 시 다음 접속부터 비밀번호 없이 관리자 모드가 자동 유지됩니다.</span>
+          </label>
+        </div>
         <div id="teacherLoginError" class="text-danger small mt-2" style="display:none;"></div>
       </div>
       <div class="modal-footer border-secondary">
@@ -1021,6 +1034,7 @@
     renderTodayMeal();
     loadAppData();
     initServiceWorkerAndNetworkStatus();
+    checkTeacherAutoLogin();
   };
 
   // 📲 PWA Service Worker 및 오프라인 상태 모니터링 엔진
@@ -1957,9 +1971,24 @@
     reader.readAsArrayBuffer(file);
   }
 
+  const TEACHER_AUTH_KEY = 'class2_1_teacher_device_token';
+
+  function enterTeacherDashboardView(isAuto = false) {
+    document.getElementById('teacherDashboard').style.display = 'block';
+    const badge = document.getElementById('teacherSessionBadge');
+    if (badge) {
+      badge.style.display = localStorage.getItem(TEACHER_AUTH_KEY) ? 'inline-block' : 'none';
+    }
+    renderNoticeEditors();
+    populateConfigInputs();
+    refreshTeacherAttendance();
+    renderOnlineReportsTable();
+  }
+
   async function verifyTeacherLogin() {
     const pwd = document.getElementById('teacherPasswordInput').value;
     const errEl = document.getElementById('teacherLoginError');
+    const chkAuto = document.getElementById('chkTeacherAutoLogin');
     if (!pwd) { errEl.innerText = '비밀번호를 입력해주세요.'; errEl.style.display = 'block'; return; }
     
     setButtonLoading('btnTeacherLoginSubmit', true, '로그인 중...');
@@ -1969,19 +1998,63 @@
     setButtonLoading('btnTeacherLoginSubmit', false);
     if (res && res.success) {
       bootstrap.Modal.getOrCreateInstance(document.getElementById('teacherModal')).hide();
-      document.getElementById('teacherDashboard').style.display = 'block';
       document.getElementById('teacherPasswordInput').value = '';
-      renderNoticeEditors();
-      populateConfigInputs();
-      refreshTeacherAttendance();
-      renderOnlineReportsTable();
+      
+      if (chkAuto && chkAuto.checked) {
+        try {
+          // 기기 인증 토큰 로컬 안전 보관
+          const tokenData = {
+            auth: btoa(encodeURIComponent(pwd)),
+            savedAt: new Date().toISOString()
+          };
+          localStorage.setItem(TEACHER_AUTH_KEY, JSON.stringify(tokenData));
+        } catch (e) {}
+      }
+
+      enterTeacherDashboardView(false);
     } else {
       errEl.innerText = res.message || '비밀번호가 일치하지 않습니다.';
       errEl.style.display = 'block';
     }
   }
 
+  async function checkTeacherAutoLogin() {
+    try {
+      const stored = localStorage.getItem(TEACHER_AUTH_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (parsed && parsed.auth) {
+        const decodedPwd = decodeURIComponent(atob(parsed.auth));
+        // 비동기로 백그라운드 검증
+        const res = await callApi('verifyTeacherPassword', { password: decodedPwd }, true);
+        if (res && res.success) {
+          enterTeacherDashboardView(true);
+        } else {
+          localStorage.removeItem(TEACHER_AUTH_KEY);
+        }
+      }
+    } catch (e) {
+      console.warn('Teacher auto-login check bypassed:', e);
+    }
+  }
+
+  function logoutTeacherSession() {
+    if (confirm('이 기기에서 교사 자동 로그인을 해제하고 로그아웃하시겠습니까?')) {
+      localStorage.removeItem(TEACHER_AUTH_KEY);
+      const badge = document.getElementById('teacherSessionBadge');
+      if (badge) badge.style.display = 'none';
+      document.getElementById('teacherDashboard').style.display = 'none';
+      alert('교사 관리자 로그아웃이 완료되었습니다.');
+    }
+  }
+
   function openTeacherModal() {
+    // 이미 자동 로그인 토큰이 있는 경우 바로 대시보드로 진입
+    const stored = localStorage.getItem(TEACHER_AUTH_KEY);
+    if (stored) {
+      enterTeacherDashboardView(true);
+      return;
+    }
     document.getElementById('teacherLoginError').style.display = 'none';
     document.getElementById('teacherPasswordInput').value = '';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('teacherModal')).show();
