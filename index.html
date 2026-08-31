@@ -552,10 +552,13 @@
       <!-- 실시간 출석 탭 -->
       <div class="tab-pane fade show active" id="tabRealtime">
         <div class="p-3 bg-dark rounded border border-secondary mb-3">
-          <div class="d-flex justify-content-between align-items-center mb-3 rounded" style="background-color: #1e293b; padding:10px; border:1px dashed #38bdf8;">
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-info text-dark">오늘 PIN</span>
-              <h4 id="currentPinDisplay" class="mb-0 text-warning">----</h4>
+          <div class="d-flex justify-content-between align-items-center mb-3 rounded flex-wrap gap-2" style="background-color: #1e293b; padding:10px; border:1px dashed #38bdf8;">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-info text-dark">오늘 PIN</span>
+                <h4 id="currentPinDisplay" class="mb-0 text-warning">----</h4>
+              </div>
+              <span id="teacherLiveDateBadge" class="badge bg-dark border border-secondary text-info"><i class="bi bi-calendar-event me-1"></i>기준 일자: 오늘</span>
             </div>
             <div class="d-flex gap-2">
               <button class="btn btn-outline-info btn-sm" id="btnTeacherRefresh" onclick="refreshTeacherAttendance()"><i class="bi bi-arrow-clockwise"></i> 새로고침</button>
@@ -657,13 +660,22 @@
       <!-- 월말 대장 탭 -->
       <div class="tab-pane fade" id="tabMonthSummary">
         <div class="p-3 bg-dark rounded border border-secondary">
-          <div class="d-flex justify-content-between mb-3">
-            <h5 class="text-warning">월말 출결 특이사항 일별 대장 (온라인 서류 제출 결합)</h5>
-            <div>
-              <button class="btn btn-outline-info btn-sm" onclick="copyMonthlySummaryText()">복사</button>
-              <button class="btn btn-outline-secondary btn-sm" onclick="printMonthlySummary()">인쇄/PDF</button>
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h5 class="text-warning mb-0"><i class="bi bi-journal-text"></i> 월별 출결 특이사항 일별 대장</h5>
+              <span id="teacherSummaryCountBadge" class="badge bg-danger">0건</span>
+              <span id="summaryLoadingSpinner" class="spinner-border spinner-border-sm text-warning" style="display:none;"></span>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <input type="month" id="summaryMonthPicker" class="form-control form-control-sm bg-dark text-white border-secondary" style="width: 140px;" onchange="selectTeacherSummaryMonth(this.value)">
+              <button class="btn btn-outline-info btn-sm" onclick="copyMonthlySummaryText()"><i class="bi bi-clipboard"></i> 복사</button>
+              <button class="btn btn-outline-secondary btn-sm" onclick="printMonthlySummary()"><i class="bi bi-printer"></i> 인쇄/PDF</button>
             </div>
           </div>
+
+          <!-- 월 선택 알약 탭 바 -->
+          <div class="mb-3 student-month-tabs-container" id="teacherSummaryMonthTabsContainer"></div>
+
           <div id="monthlySummaryContainer" style="max-height: 520px; overflow-y: auto;"></div>
         </div>
       </div>
@@ -831,7 +843,7 @@
         <input type="hidden" id="editModalStudentId">
         <div class="d-flex justify-content-between mb-3 p-2 bg-dark border border-secondary rounded">
           <div><span class="text-secondary small d-block">학생</span><span id="editModalStudentName" class="fs-5 text-info"></span></div>
-          <div class="text-end"><span class="text-secondary small d-block">기록 일자</span><input type="date" id="editModalDateInput" class="form-control form-control-sm text-warning bg-dark"></div>
+          <div class="text-end"><span class="text-secondary small d-block">기록 일자</span><input type="date" id="editModalDateInput" class="form-control form-control-sm text-warning bg-dark" onchange="onEditModalDateChanged()"></div>
         </div>
         <div class="mb-3">
           <label class="small text-secondary fw-bold">출결 상태</label>
@@ -948,9 +960,37 @@
     students: [], config: {}, neisData: {}, onlineReports: {}, todayRecords: {}, monthRecords: {},
     monthRecordsCache: {},
     meals: {}, currentMealDate: new Date(), currentStudent: null, quickReasons: [],
-    studentRawSpecials: [], selectedStudentMonth: '',
+    studentRawSpecials: [], selectedStudentMonth: '', selectedTeacherSummaryMonth: '',
     boardData: { mainTitle: '오늘의 학급 알림장', ddays: [], notices: [] }
   };
+
+  // 🕒 한국 표준시(KST, UTC+9) 기준 날짜 및 년월 헬퍼 함수
+  function getKstDate(d = new Date()) {
+    const offset = 9 * 60; // KST는 UTC+9
+    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    return new Date(utc + (offset * 60000));
+  }
+
+  function getKstDateString(d = new Date()) {
+    const kst = getKstDate(d);
+    const y = kst.getFullYear();
+    const m = String(kst.getMonth() + 1).padStart(2, '0');
+    const day = String(kst.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function getKstYearMonthString(d = new Date()) {
+    const kst = getKstDate(d);
+    const y = kst.getFullYear();
+    const m = String(kst.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  }
+
+  function getKstDayName(d = new Date()) {
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const kst = getKstDate(d);
+    return dayNames[kst.getDay()];
+  }
 
   function callApi(action, payload = {}, isPost = false) {
     return new Promise((resolve) => {
@@ -1023,12 +1063,19 @@
   window.onload = function() {
     if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = '';
     const now = new Date();
-    const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    document.getElementById('monthPicker').value = ym;
-    appState.selectedStudentMonth = ym;
-    const todayIso = now.toISOString().slice(0, 10);
+    const ymKst = getKstYearMonthString(now);
+    const todayKst = getKstDateString(now);
+    
+    document.getElementById('monthPicker').value = ymKst;
+    const summaryMonthPicker = document.getElementById('summaryMonthPicker');
+    if (summaryMonthPicker) summaryMonthPicker.value = ymKst;
+
+    appState.selectedStudentMonth = ymKst;
+    appState.selectedTeacherSummaryMonth = ymKst;
+
     const dateInput = document.getElementById('manualMealDate');
-    if (dateInput) dateInput.value = todayIso;
+    if (dateInput) dateInput.value = todayKst;
+
     loadSavedReasons();
     renderAllViews();
     renderTodayMeal();
@@ -1400,7 +1447,7 @@
   }
 
   function changeMealDate(deltaDays) { appState.currentMealDate.setDate(appState.currentMealDate.getDate() + deltaDays); renderTodayMeal(); }
-  function resetMealDateToToday() { appState.currentMealDate = new Date(); renderTodayMeal(); }
+  function resetMealDateToToday() { appState.currentMealDate = getKstDate(); renderTodayMeal(); }
 
   function renderTodayMeal() {
     const container = document.getElementById('todayMealContent'), badge = document.getElementById('todayMealDateBadge');
@@ -1408,7 +1455,7 @@
     const d = appState.currentMealDate;
     const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const isToday = (dateStr === new Date().toISOString().slice(0, 10));
+    const isToday = (dateStr === getKstDateString());
 
     if (badge) {
       badge.className = isToday ? 'badge bg-warning text-dark fw-bold ms-1' : 'badge bg-info text-dark fw-bold ms-1';
@@ -1439,11 +1486,13 @@
     renderNotices();
     populateConfigInputs();
     renderOnlineReportsTable();
+    renderTeacherSummaryMonthTabs();
+    renderMonthlySpecialSummary();
   }
 
   // ⚡ 초고속 즉시 로딩 엔진 (Instant Cache + Batch Background Sync)
   async function loadAppData() {
-    const curYM = new Date().toISOString().slice(0, 7);
+    const curYM = getKstYearMonthString();
     try {
       const localCached = localStorage.getItem('local_app_data_cache');
       if (localCached) {
@@ -1534,7 +1583,11 @@
   function renderRealtimeAttendance() {
     const tbody = document.getElementById('realtimeAttendanceTbody'); if (!tbody) return; tbody.innerHTML = '';
     let presentCount = 0; 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getKstDateString();
+    const liveBadge = document.getElementById('teacherLiveDateBadge');
+    if (liveBadge) {
+      liveBadge.innerHTML = `<i class="bi bi-calendar-event me-1"></i>기준 일자: <strong>${todayStr} (${getKstDayName()})</strong>`;
+    }
     appState.students.forEach(st => {
       const rec = appState.todayRecords[st.id];
       const curStatus = rec ? (rec.status || '출석') : '미출석';
@@ -1565,9 +1618,9 @@
   }
 
   function openEditModal(studentId, targetDate, customStatus, customPeriod, customReason) {
-    const st = appState.students.find(s => s.id === studentId);
+    const st = appState.students.find(s => s.id === Number(studentId));
     if (!st) return;
-    const effDate = targetDate || new Date().toISOString().slice(0, 10);
+    const effDate = targetDate || getKstDateString();
     document.getElementById('editModalStudentId').value = studentId;
     document.getElementById('editModalStudentName').innerText = `${st.id}번 ${st.name}`;
     document.getElementById('editModalDateInput').value = effDate;
@@ -1577,14 +1630,17 @@
     let reasonVal = customReason;
 
     if (statusVal === undefined || statusVal === null) {
-      const todayIso = new Date().toISOString().slice(0, 10);
-      if (effDate === todayIso && appState.todayRecords[studentId]) {
+      const todayKst = getKstDateString();
+      const ym = effDate.slice(0, 7);
+      const mRecs = appState.monthRecordsCache[ym] || appState.monthRecords || {};
+      
+      if (effDate === todayKst && appState.todayRecords[studentId]) {
         const r = appState.todayRecords[studentId];
         statusVal = r.status || '출석';
         periodVal = r.period || '종일';
         reasonVal = r.reason || '';
-      } else if (appState.monthRecords && appState.monthRecords[studentId] && appState.monthRecords[studentId][effDate]) {
-        const r = appState.monthRecords[studentId][effDate];
+      } else if (mRecs[studentId] && mRecs[studentId][effDate]) {
+        const r = mRecs[studentId][effDate];
         statusVal = r.status || '출석';
         periodVal = r.period || '종일';
         reasonVal = r.reason || '';
@@ -1615,6 +1671,42 @@
     bootstrap.Modal.getOrCreateInstance(document.getElementById('editAttendanceModal')).show();
   }
 
+  function onEditModalDateChanged() {
+    const sId = parseInt(document.getElementById('editModalStudentId').value, 10);
+    const newDate = document.getElementById('editModalDateInput').value;
+    if (!sId || !newDate) return;
+
+    const todayKst = getKstDateString();
+    let r = null;
+    if (newDate === todayKst && appState.todayRecords[sId]) {
+      r = appState.todayRecords[sId];
+    } else {
+      const ym = newDate.slice(0, 7);
+      const mRecs = appState.monthRecordsCache[ym] || appState.monthRecords || {};
+      if (mRecs[sId] && mRecs[sId][newDate]) {
+        r = mRecs[sId][newDate];
+      }
+    }
+
+    if (r) {
+      document.getElementById('editModalStatus').value = r.status || '출석';
+      const periodVal = r.period || '종일';
+      document.getElementById('editModalPeriod').value = periodVal;
+      if (periodVal === '종일' || periodVal === '-') {
+        document.getElementById('periodStartSelect').value = '조회';
+        document.getElementById('periodEndSelect').value = '종례';
+      } else if (periodVal.indexOf('~') !== -1) {
+        const parts = periodVal.split('~');
+        document.getElementById('periodStartSelect').value = parts[0].trim();
+        document.getElementById('periodEndSelect').value = parts[1].trim();
+      } else {
+        document.getElementById('periodStartSelect').value = periodVal;
+        document.getElementById('periodEndSelect').value = periodVal;
+      }
+      document.getElementById('editModalReason').value = r.reason || '';
+    }
+  }
+
   async function saveManualAttendanceModal() {
     setButtonLoading('btnSaveEditModal', true, '저장 중...');
     const sId = document.getElementById('editModalStudentId').value;
@@ -1634,6 +1726,11 @@
       alert(res.message);
       refreshTeacherAttendance();
       loadMonthMatrix(true);
+      if (appState.selectedTeacherSummaryMonth) {
+        selectTeacherSummaryMonth(appState.selectedTeacherSummaryMonth);
+      } else {
+        renderMonthlySpecialSummary();
+      }
     } else {
       alert(res.message || '수정 실패');
     }
@@ -1996,6 +2093,8 @@
     populateConfigInputs();
     refreshTeacherAttendance();
     renderOnlineReportsTable();
+    renderTeacherSummaryMonthTabs();
+    selectTeacherSummaryMonth(appState.selectedTeacherSummaryMonth || getKstYearMonthString());
   }
 
   async function verifyTeacherLogin() {
@@ -2211,34 +2310,43 @@
     bootstrap.Modal.getOrCreateInstance(document.getElementById('detailViewModal')).show();
   }
 
-  function getSpecialRecordsByDate() {
-    const ym = document.getElementById('monthPicker').value; if (!ym) return { ym: '', dateList: [] };
+  function getSpecialRecordsByDate(targetYm) {
+    const ym = targetYm || appState.selectedTeacherSummaryMonth || document.getElementById('summaryMonthPicker')?.value || document.getElementById('monthPicker')?.value || getKstYearMonthString();
+    if (!ym) return { ym: '', month: 0, dateList: [], totalCount: 0 };
     const parts = ym.split('-');
     const year = parseInt(parts[0], 10), month = parseInt(parts[1], 10), daysInMonth = new Date(year, month, 0).getDate();
     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
     const dateList = []; 
+    let totalCount = 0;
+
+    const sourceRecords = (appState.monthRecordsCache && appState.monthRecordsCache[ym]) 
+      ? appState.monthRecordsCache[ym] 
+      : (appState.monthRecords || {});
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dStr = ym + '-' + String(d).padStart(2, '0');
       const dayOfWeek = dayNames[new Date(year, month - 1, d).getDay()];
       const specials = [];
       appState.students.forEach(st => {
-        const rec = (appState.monthRecords[st.id] || {})[dStr];
+        const rec = (sourceRecords[st.id] || {})[dStr];
         const onlineInfo = (appState.onlineReports[st.id] && appState.onlineReports[st.id][dStr]) ? appState.onlineReports[st.id][dStr] : null;
         if (rec && rec.status && rec.status !== '출석' && rec.status !== '미출석') {
           specials.push({ 
             id: st.id, name: st.name, status: rec.status, 
             period: rec.period || '종일', reason: rec.reason || '-', onlineReport: onlineInfo
           });
+          totalCount++;
         }
       });
       if (specials.length > 0) dateList.push({ date: dStr, month: month, day: d, dayOfWeek: dayOfWeek, items: specials });
     }
-    return { ym, month, dateList };
+    return { ym, month, dateList, totalCount };
   }
 
   function generateSpecialSummaryHtml(data) {
-    if (!data.dateList || data.dateList.length === 0) return `<div class="text-center p-5 text-secondary"><h5>해당 월 특이사항이 없습니다.</h5></div>`;
+    if (!data.dateList || data.dateList.length === 0) {
+      return `<div class="text-center p-5 text-secondary"><h5>${data.ym ? `[${data.ym}] ` : ''}해당 월 출결 특이사항이 없습니다.</h5><p class="small text-muted mb-0">학생들의 지각, 조퇴, 결과, 결석 등 특이사항 기록이 자동으로 집계됩니다.</p></div>`;
+    }
     let html = '';
     data.dateList.forEach(group => {
       html += `<div class="day-report-card"><div class="d-flex justify-content-between mb-2 pb-1 border-bottom border-secondary"><span class="day-report-title">${group.month}월 ${group.day}일 (${group.dayOfWeek})</span><span class="badge bg-danger">${group.items.length}건</span></div>`;
@@ -2264,21 +2372,70 @@
     return html;
   }
 
+  function renderTeacherSummaryMonthTabs() {
+    const container = document.getElementById('teacherSummaryMonthTabsContainer');
+    if (!container) return;
+    const currentYm = appState.selectedTeacherSummaryMonth || getKstYearMonthString();
+    let html = '';
+    getAcademicSchoolMonths().forEach(m => {
+      const isSel = (m.ym === currentYm) ? 'active' : '';
+      let badgeHtml = '';
+      if (appState.monthRecordsCache && appState.monthRecordsCache[m.ym]) {
+        const data = getSpecialRecordsByDate(m.ym);
+        if (data.totalCount > 0) {
+          badgeHtml = `<span class="badge bg-danger">${data.totalCount}</span>`;
+        }
+      }
+      html += `<button type="button" class="month-pill-btn ${isSel}" onclick="selectTeacherSummaryMonth('${m.ym}')">${m.l} ${badgeHtml}</button>`;
+    });
+    container.innerHTML = html;
+  }
+
+  async function selectTeacherSummaryMonth(ym) {
+    if (!ym) return;
+    appState.selectedTeacherSummaryMonth = ym;
+    const picker = document.getElementById('summaryMonthPicker');
+    if (picker && picker.value !== ym) picker.value = ym;
+
+    renderTeacherSummaryMonthTabs();
+
+    if (!appState.monthRecordsCache || !appState.monthRecordsCache[ym]) {
+      const spinner = document.getElementById('summaryLoadingSpinner');
+      if (spinner) spinner.style.display = 'inline-block';
+      const res = await callApi('getMonthAttendanceMatrix', { yearMonth: ym });
+      if (spinner) spinner.style.display = 'none';
+      if (res && res.success) {
+        if (!appState.monthRecordsCache) appState.monthRecordsCache = {};
+        appState.monthRecordsCache[ym] = res.records || {};
+        if (res.onlineReports) appState.onlineReports = res.onlineReports;
+      }
+    }
+
+    renderMonthlySpecialSummary();
+    renderTeacherSummaryMonthTabs();
+  }
+
   function renderMonthlySpecialSummary() {
-    const data = getSpecialRecordsByDate();
+    const ym = appState.selectedTeacherSummaryMonth || document.getElementById('summaryMonthPicker')?.value || getKstYearMonthString();
+    const data = getSpecialRecordsByDate(ym);
     const container = document.getElementById('monthlySummaryContainer');
     if (container) container.innerHTML = generateSpecialSummaryHtml(data);
+    const badge = document.getElementById('teacherSummaryCountBadge');
+    if (badge) badge.innerText = `${data.totalCount || 0}건`;
   }
 
   function openMonthlySummaryModal() {
-    const data = getSpecialRecordsByDate();
+    const ym = appState.selectedTeacherSummaryMonth || getKstYearMonthString();
+    const data = getSpecialRecordsByDate(ym);
     document.getElementById('modalSummaryPeriodLabel').innerText = `기준: ${data.ym}`;
     document.getElementById('modalSummaryContent').innerHTML = generateSpecialSummaryHtml(data);
     bootstrap.Modal.getOrCreateInstance(document.getElementById('monthlySummaryModal')).show();
   }
 
   function copyMonthlySummaryText() {
-    const data = getSpecialRecordsByDate(); if (!data.dateList || data.dateList.length === 0) { alert('내역이 없습니다.'); return; }
+    const ym = appState.selectedTeacherSummaryMonth || document.getElementById('summaryMonthPicker')?.value || getKstYearMonthString();
+    const data = getSpecialRecordsByDate(ym);
+    if (!data.dateList || data.dateList.length === 0) { alert(`[${data.ym}] 내역이 없습니다.`); return; }
     let lines = [`[${data.ym} 특이사항 대장 (온라인 출결 신고서 연동)]`];
     data.dateList.forEach(g => {
       lines.push(`\n📅 ${g.month}월 ${g.day}일 (${g.dayOfWeek})`);
@@ -2287,11 +2444,13 @@
         lines.push(` - ${i.id}번 ${i.name} | ${i.status} | 교시:${i.period} | 사유:${i.reason} | ${docText}`); 
       });
     });
-    navigator.clipboard.writeText(lines.join('\n')).then(() => alert('복사 완료!'));
+    navigator.clipboard.writeText(lines.join('\n')).then(() => alert(`[${data.ym}] 특이사항 대장이 클립보드에 복사되었습니다!`));
   }
 
   function printMonthlySummary() {
-    const data = getSpecialRecordsByDate(); if (!data.dateList || data.dateList.length === 0) { alert('인쇄할 내역이 없습니다.'); return; }
+    const ym = appState.selectedTeacherSummaryMonth || document.getElementById('summaryMonthPicker')?.value || getKstYearMonthString();
+    const data = getSpecialRecordsByDate(ym);
+    if (!data.dateList || data.dateList.length === 0) { alert(`[${data.ym}] 인쇄할 내역이 없습니다.`); return; }
     let p = `<html><head><style>body{font-family:sans-serif;} .c{border:1px solid #999;padding:12px;margin-bottom:12px;} .t{font-weight:bold;border-bottom:1px solid #ccc;margin-bottom:8px;} .r{padding:4px 0;border-bottom:1px dashed #eee;}</style></head><body><h2>[${data.ym}] 특이사항 대장</h2>`;
     data.dateList.forEach(g => {
       p += `<div class="c"><div class="t">${g.month}월 ${g.day}일 (${g.dayOfWeek})</div>`;
