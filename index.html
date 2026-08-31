@@ -2,6 +2,26 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <script>
+    // Ensure window.fetch has both a getter and setter to prevent "Cannot set property fetch of #<Window> which has only a getter"
+    (function() {
+      try {
+        let _fetch = window.fetch ? window.fetch.bind(window) : undefined;
+        Object.defineProperty(window, 'fetch', {
+          get: function() {
+            return _fetch;
+          },
+          set: function(fn) {
+            _fetch = fn;
+          },
+          configurable: true,
+          enumerable: true
+        });
+      } catch (e) {
+        console.warn('Fetch setter shim error:', e);
+      }
+    })();
+  </script>
   <title>2기계1반 학급시스템</title>
   
   <!-- 📲 모바일 웹앱 / 홈 화면 추가 설정 메타태그 -->
@@ -16,8 +36,8 @@
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
   <style>
     :root {
       --bg-dark: #0f172a;
@@ -336,7 +356,10 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-      <h3 class="fw-bold mb-0">🏫 2기계1반 학급시스템</h3>
+      <div class="d-flex align-items-center gap-2">
+        <h3 class="fw-bold mb-0">🏫 2기계1반 학급시스템</h3>
+        <span id="offlineStatusBadge" class="badge bg-danger" style="display:none;"><i class="bi bi-wifi-off"></i> 오프라인 모드</span>
+      </div>
       <p class="text-secondary small mb-0">초고속 클라우드 웹앱 · 실시간 출석 · 온라인 출결 연동 · 급식 식단</p>
     </div>
     <div class="d-flex gap-2 align-items-center">
@@ -641,7 +664,7 @@
 
       <!-- ⚙️ 출석시간 및 환경설정 관리 탭 -->
       <div class="tab-pane fade" id="tabConfigManage">
-        <div class="p-3 bg-dark rounded border border-secondary">
+        <div class="p-3 bg-dark rounded border border-secondary mb-3">
           <h5 class="text-info mb-3"><i class="bi bi-clock-history"></i> 아침 자율 출석 시간(Time-lock) 및 위치 설정</h5>
           <div class="row g-3">
             <div class="col-md-4">
@@ -659,6 +682,29 @@
           </div>
           <div class="mt-3 text-end">
             <button class="btn btn-info btn-sm" id="btnSaveConfig" onclick="saveTimeLockConfig()"><i class="bi bi-save"></i> 설정값 저장</button>
+          </div>
+        </div>
+
+        <!-- 🔑 교사 관리자 비밀번호 변경 카드 -->
+        <div class="p-3 bg-dark rounded border border-secondary">
+          <h5 class="text-warning mb-3"><i class="bi bi-key-fill"></i> 교사 관리자 접속 비밀번호 변경</h5>
+          <p class="text-secondary small mb-3">교사 모드에 접속할 때 사용하는 비밀번호를 안전하게 변경할 수 있습니다. (기본값: 19650018)</p>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label text-secondary small fw-bold">현재 비밀번호</label>
+              <input type="password" id="cfgCurTeacherPwd" class="form-control form-control-sm" placeholder="현재 비밀번호">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label text-secondary small fw-bold">새 비밀번호 (4자리 이상)</label>
+              <input type="password" id="cfgNewTeacherPwd" class="form-control form-control-sm" placeholder="새 비밀번호">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label text-secondary small fw-bold">새 비밀번호 확인</label>
+              <input type="password" id="cfgNewTeacherPwdConfirm" class="form-control form-control-sm" placeholder="새 비밀번호 재입력">
+            </div>
+          </div>
+          <div class="mt-3 text-end">
+            <button class="btn btn-warning btn-sm" id="btnChangeTeacherPwd" onclick="changeTeacherPassword()"><i class="bi bi-shield-check"></i> 비밀번호 변경</button>
           </div>
         </div>
       </div>
@@ -880,8 +926,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // ⭐️⭐️ [1단계]에서 복사한 구글 앱스 스크립트 웹앱 URL을 여기에 붙여넣으세요! ⭐️⭐️
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbznppCLYTlEgyJ-T375lG3A7zKmxTSvtRCWv3Nd4Nf_b_XitD4VWRw71TfGBhGFX6uv/exec";
+  // ⭐️⭐️ [필수] 여기에 배포된 Apps Script 웹앱 URL을 입력하세요 ⭐️⭐️
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyMLPOmWSU2wqdLtRtCjrGxkkP8tFJYfllxeCUbWuvbMso5303B5MfqITKouCPmBA8d/exec";
 
   const DEFAULT_REASONS = ["병원 진료", "감기/발열", "체험 학습", "가정 사정", "교통 지연", "생리통", "두통/복통", "개인 사정", "백신 접종", "대회 참가"];
 
@@ -893,25 +939,50 @@
     boardData: { mainTitle: '오늘의 학급 알림장', ddays: [], notices: [] }
   };
 
-  // 비동기 API 통신 래퍼 함수 (google.script.run 대체)
-  async function callApi(action, payload = {}, isPost = false) {
-    try {
+  function callApi(action, payload = {}, isPost = false) {
+    return new Promise((resolve) => {
       if (!isPost) {
-        const queryParams = new URLSearchParams({ action, ...payload }).toString();
-        const res = await fetch(`${GAS_API_URL}?${queryParams}`);
-        return await res.json();
+        const callbackName = 'jsonp_cb_' + Math.round(100000 * Math.random());
+        const queryParams = new URLSearchParams({ action, callback: callbackName, ...payload }).toString();
+        const script = document.createElement('script');
+        script.src = `${GAS_API_URL}?${queryParams}`;
+
+        const timeout = setTimeout(() => {
+          cleanup();
+          resolve({ success: false, message: '통신 응답 시간 초과' });
+        }, 15000);
+
+        function cleanup() {
+          if (window[callbackName]) delete window[callbackName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          clearTimeout(timeout);
+        }
+
+        window[callbackName] = function(data) {
+          cleanup();
+          resolve(data);
+        };
+
+        script.onerror = function() {
+          cleanup();
+          resolve({ success: false, message: 'JSONP 스크립트 로드 실패' });
+        };
+
+        document.body.appendChild(script);
       } else {
-        const res = await fetch(GAS_API_URL, {
+        fetch(GAS_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action, ...payload })
+        })
+        .then(res => res.json())
+        .then(data => resolve(data))
+        .catch(err => {
+          console.error('POST Error:', err);
+          resolve({ success: false, message: '서버 통신 오류가 발생했습니다.' });
         });
-        return await res.json();
       }
-    } catch (err) {
-      console.error('API Error:', err);
-      return { success: false, message: '서버 통신 오류가 발생했습니다.' };
-    }
+    });
   }
 
   function setButtonLoading(buttonId, isLoading, loadingText = '처리 중...') {
@@ -949,7 +1020,32 @@
     renderAllViews();
     renderTodayMeal();
     loadAppData();
+    initServiceWorkerAndNetworkStatus();
   };
+
+  // 📲 PWA Service Worker 및 오프라인 상태 모니터링 엔진
+  function initServiceWorkerAndNetworkStatus() {
+    const offlineBadge = document.getElementById('offlineStatusBadge');
+    function updateOnlineStatus() {
+      if (navigator.onLine) {
+        if (offlineBadge) offlineBadge.style.display = 'none';
+      } else {
+        if (offlineBadge) offlineBadge.style.display = 'inline-block';
+      }
+    }
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.warn('Service Worker registration note:', err);
+        });
+      });
+    }
+  }
 
   function openPwaGuideModal() {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('pwaGuideModal')).show();
@@ -1215,6 +1311,67 @@
     }
   }
 
+  async function changeTeacherPassword() {
+    const curPwd = (document.getElementById('cfgCurTeacherPwd') ? document.getElementById('cfgCurTeacherPwd').value : '').trim();
+    const newPwd = (document.getElementById('cfgNewTeacherPwd') ? document.getElementById('cfgNewTeacherPwd').value : '').trim();
+    const newPwdConfirm = (document.getElementById('cfgNewTeacherPwdConfirm') ? document.getElementById('cfgNewTeacherPwdConfirm').value : '').trim();
+
+    if (!curPwd) {
+      alert('현재 교사 비밀번호를 입력해주세요.');
+      return;
+    }
+    if (!newPwd || newPwd.length < 4) {
+      alert('새 비밀번호는 4자리 이상으로 입력해주세요.');
+      return;
+    }
+    if (newPwd !== newPwdConfirm) {
+      alert('새 비밀번호와 확인이 일치하지 않습니다.');
+      return;
+    }
+
+    setButtonLoading('btnChangeTeacherPwd', true, '변경 중...');
+    const res = await callApi('updateTeacherPassword', { currentPassword: curPwd, newPassword: newPwd }, true);
+    setButtonLoading('btnChangeTeacherPwd', false);
+
+    if (res && res.success) {
+      alert(res.message || '교사 비밀번호가 성공적으로 변경되었습니다.');
+      if (document.getElementById('cfgCurTeacherPwd')) document.getElementById('cfgCurTeacherPwd').value = '';
+      if (document.getElementById('cfgNewTeacherPwd')) document.getElementById('cfgNewTeacherPwd').value = '';
+      if (document.getElementById('cfgNewTeacherPwdConfirm')) document.getElementById('cfgNewTeacherPwdConfirm').value = '';
+    } else {
+      alert(res.message || '비밀번호 변경에 실패했습니다.');
+    }
+  }
+
+  // 🚀 비동기 지연 로딩 헬퍼 (초기 번들 최소화 & 온디맨드 로딩)
+  function ensurePdfJsLoaded() {
+    return new Promise((resolve, reject) => {
+      if (window.pdfjsLib) {
+        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        return resolve();
+      }
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+      script.onload = () => {
+        if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        resolve();
+      };
+      script.onerror = () => reject(new Error('PDF 라이브러리 로드 실패'));
+      document.head.appendChild(script);
+    });
+  }
+
+  function ensureXlsxLoaded() {
+    return new Promise((resolve, reject) => {
+      if (window.XLSX) return resolve();
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Excel 라이브러리 로드 실패'));
+      document.head.appendChild(script);
+    });
+  }
+
   function changeMealDate(deltaDays) { appState.currentMealDate.setDate(appState.currentMealDate.getDate() + deltaDays); renderTodayMeal(); }
   function resetMealDateToToday() { appState.currentMealDate = new Date(); renderTodayMeal(); }
 
@@ -1257,7 +1414,28 @@
     renderOnlineReportsTable();
   }
 
+  // ⚡ 초고속 즉시 로딩 엔진 (Instant Cache + Batch Background Sync)
   async function loadAppData() {
+    const curYM = new Date().toISOString().slice(0, 7);
+    try {
+      const localCached = localStorage.getItem('local_app_data_cache');
+      if (localCached) {
+        const parsed = JSON.parse(localCached);
+        if (parsed.students && parsed.students.length > 0) appState.students = parsed.students;
+        appState.config = parsed.config || {};
+        appState.neisData = parsed.neisData || {};
+        appState.onlineReports = parsed.onlineReports || {};
+        appState.todayRecords = parsed.todayRecords || {};
+        appState.meals = parsed.meals || {};
+        appState.boardData = parsed.boardData || appState.boardData;
+        if (parsed.currentMonthMatrix) {
+          appState.monthRecordsCache[curYM] = parsed.currentMonthMatrix;
+        }
+        renderAllViews();
+        renderTodayMeal();
+      }
+    } catch(e) {}
+
     const res = await callApi('getInitialData');
     if (res && res.success) {
       if (res.students && res.students.length > 0) appState.students = res.students;
@@ -1267,6 +1445,13 @@
       appState.todayRecords = res.todayRecords || {};
       appState.meals = res.meals || {};
       appState.boardData = res.boardData || { mainTitle: '오늘의 학급 알림장', ddays: [], notices: [] };
+      if (res.currentMonthMatrix) {
+        appState.monthRecordsCache[curYM] = res.currentMonthMatrix;
+      }
+
+      try {
+        localStorage.setItem('local_app_data_cache', JSON.stringify(res));
+      } catch(e) {}
 
       if (document.getElementById('todayDateBadge')) document.getElementById('todayDateBadge').innerText = res.todayStr || '';
       if (res.config && res.config.dailyPin && document.getElementById('currentPinDisplay')) document.getElementById('currentPinDisplay').innerText = res.config.dailyPin;
@@ -1484,6 +1669,7 @@
 
     reader.onload = async function(e) {
       try {
+        await ensureXlsxLoaded();
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
@@ -1695,6 +1881,7 @@
 
     reader.onload = async function() {
       try {
+        await ensurePdfJsLoaded();
         const typedArray = new Uint8Array(this.result);
         const pdf = await pdfjsLib.getDocument({ data: typedArray, nativeImageDecoderSupport: 'none', isEvalSupported: false }).promise;
         let items = [];
@@ -2226,6 +2413,7 @@
 
     reader.onload = async function() {
       try {
+        await ensurePdfJsLoaded();
         const typedArray = new Uint8Array(this.result);
         const pdf = await pdfjsLib.getDocument({ data: typedArray, nativeImageDecoderSupport: 'none', isEvalSupported: false }).promise;
         let allTokens = [];
