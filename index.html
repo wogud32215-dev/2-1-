@@ -1493,6 +1493,7 @@
   // ⚡ 초고속 즉시 로딩 엔진 (Instant Cache + Batch Background Sync)
   async function loadAppData() {
     const curYM = getKstYearMonthString();
+    const curToday = getKstDateString();
     try {
       const localCached = localStorage.getItem('local_app_data_cache');
       if (localCached) {
@@ -1501,7 +1502,12 @@
         appState.config = parsed.config || {};
         appState.neisData = parsed.neisData || {};
         appState.onlineReports = parsed.onlineReports || {};
-        appState.todayRecords = parsed.todayRecords || {};
+        // 오늘 날짜와 로컬 캐시 날짜가 일치할 때만 todayRecords 로드 (날짜가 바뀌었으면 초기화)
+        if (parsed.cachedTodayStr === curToday && parsed.todayRecords) {
+          appState.todayRecords = parsed.todayRecords;
+        } else {
+          appState.todayRecords = {};
+        }
         appState.meals = parsed.meals || {};
         appState.boardData = parsed.boardData || appState.boardData;
         if (parsed.currentMonthMatrix) {
@@ -1512,13 +1518,19 @@
       }
     } catch(e) {}
 
-    const res = await callApi('getInitialData');
+    const res = await callApi('getInitialData', { todayStr: curToday });
     if (res && res.success) {
       if (res.students && res.students.length > 0) appState.students = res.students;
       appState.config = res.config || {};
       appState.neisData = res.neisData || {};
       appState.onlineReports = res.onlineReports || {};
-      appState.todayRecords = res.todayRecords || {};
+      
+      // 백엔드 반환 todayStr가 현재 KST 오늘 날짜와 일치하는 경우만 반영
+      if (res.todayStr === curToday || !res.todayStr) {
+        appState.todayRecords = res.todayRecords || {};
+      } else {
+        appState.todayRecords = {};
+      }
       appState.meals = res.meals || {};
       appState.boardData = res.boardData || { mainTitle: '오늘의 학급 알림장', ddays: [], notices: [] };
       if (res.currentMonthMatrix) {
@@ -1526,10 +1538,11 @@
       }
 
       try {
+        res.cachedTodayStr = curToday;
         localStorage.setItem('local_app_data_cache', JSON.stringify(res));
       } catch(e) {}
 
-      if (document.getElementById('todayDateBadge')) document.getElementById('todayDateBadge').innerText = res.todayStr || '';
+      if (document.getElementById('todayDateBadge')) document.getElementById('todayDateBadge').innerText = res.todayStr || curToday;
       if (res.config && res.config.dailyPin && document.getElementById('currentPinDisplay')) document.getElementById('currentPinDisplay').innerText = res.config.dailyPin;
       if (res.config && res.config.neisPeriod && document.getElementById('displayNeisPeriod')) document.getElementById('displayNeisPeriod').innerText = '기간 : ' + res.config.neisPeriod;
 
@@ -1738,10 +1751,15 @@
 
   async function refreshTeacherAttendance() {
     setButtonLoading('btnTeacherRefresh', true, '갱신 중...');
-    const res = await callApi('getTodayAttendanceStatus');
+    const curToday = getKstDateString();
+    const res = await callApi('getTodayAttendanceStatus', { todayStr: curToday });
     setButtonLoading('btnTeacherRefresh', false);
     if (res && res.success) { 
-      appState.todayRecords = res.records || {}; 
+      if (res.todayStr === curToday || !res.todayStr) {
+        appState.todayRecords = res.records || {}; 
+      } else {
+        appState.todayRecords = {};
+      }
       renderRealtimeAttendance(); 
       renderStudentLiveAttendance(); 
     }
@@ -1749,10 +1767,15 @@
 
   async function refreshStudentAttendance() {
     setButtonLoading('btnStudentRefresh', true, '갱신 중...');
-    const res = await callApi('getTodayAttendanceStatus');
+    const curToday = getKstDateString();
+    const res = await callApi('getTodayAttendanceStatus', { todayStr: curToday });
     setButtonLoading('btnStudentRefresh', false);
     if (res && res.success) { 
-      appState.todayRecords = res.records || {}; 
+      if (res.todayStr === curToday || !res.todayStr) {
+        appState.todayRecords = res.records || {}; 
+      } else {
+        appState.todayRecords = {};
+      }
       renderRealtimeAttendance(); 
       renderStudentLiveAttendance(); 
     }
@@ -2402,12 +2425,19 @@
     if (!appState.monthRecordsCache || !appState.monthRecordsCache[ym]) {
       const spinner = document.getElementById('summaryLoadingSpinner');
       if (spinner) spinner.style.display = 'inline-block';
-      const res = await callApi('getMonthAttendanceMatrix', { yearMonth: ym });
-      if (spinner) spinner.style.display = 'none';
-      if (res && res.success) {
-        if (!appState.monthRecordsCache) appState.monthRecordsCache = {};
-        appState.monthRecordsCache[ym] = res.records || {};
-        if (res.onlineReports) appState.onlineReports = res.onlineReports;
+      try {
+        const resPromise = callApi('getMonthAttendanceMatrix', { yearMonth: ym });
+        const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), 5000));
+        const res = await Promise.race([resPromise, timeoutPromise]);
+        if (res && res.success) {
+          if (!appState.monthRecordsCache) appState.monthRecordsCache = {};
+          appState.monthRecordsCache[ym] = res.records || {};
+          if (res.onlineReports) appState.onlineReports = res.onlineReports;
+        }
+      } catch (err) {
+        console.warn('selectTeacherSummaryMonth load error:', err);
+      } finally {
+        if (spinner) spinner.style.display = 'none';
       }
     }
 
@@ -2465,9 +2495,9 @@
   }
 
   function getAcademicSchoolMonths() {
-    const now = new Date();
-    let yr = now.getFullYear();
-    if (now.getMonth() < 2) yr--;
+    const nowKst = getKstDate();
+    let yr = nowKst.getFullYear();
+    if (nowKst.getMonth() < 2) yr--;
     return [
       { l: '3월', ym: `${yr}-03` }, { l: '4월', ym: `${yr}-04` }, { l: '5월', ym: `${yr}-05` },
       { l: '6월', ym: `${yr}-06` }, { l: '7월', ym: `${yr}-07` }, { l: '8월', ym: `${yr}-08` },
@@ -2479,13 +2509,61 @@
   async function loadStudentSpecialRecords(studentId) {
     const c = document.getElementById('studentSpecialRecordsList');
     if (!c) return;
-    c.innerHTML = '<div class="text-secondary small p-3"><span class="spinner-border spinner-border-sm"></span> 특이사항을 불러오는 중입니다...</div>';
 
-    const res = await callApi('getStudentAttendanceHistory', { studentId });
-    if (res && res.success) {
-      appState.studentRawSpecials = res.specialRecords || [];
-      const ym = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
-      appState.selectedStudentMonth = getAcademicSchoolMonths().some(m => m.ym === ym) ? ym : getAcademicSchoolMonths()[0].ym;
+    const sId = Number(studentId);
+    const curYM = getKstYearMonthString();
+    
+    // 1. 메모리/캐시된 데이터 기반으로 특이사항 즉시 렌더링 (초고속 즉시 피드백)
+    const localSpecials = [];
+    if (appState.monthRecordsCache) {
+      Object.keys(appState.monthRecordsCache).forEach(ym => {
+        const mData = appState.monthRecordsCache[ym];
+        if (mData && mData[sId]) {
+          Object.keys(mData[sId]).forEach(dStr => {
+            const rec = mData[sId][dStr];
+            if (rec && rec.status && rec.status !== '출석' && rec.status !== '미출석') {
+              const onlineInfo = (appState.onlineReports && appState.onlineReports[sId] && appState.onlineReports[sId][dStr]) ? appState.onlineReports[sId][dStr] : null;
+              localSpecials.push({
+                date: dStr,
+                time: rec.time || '',
+                status: rec.status,
+                period: rec.period || '종일',
+                reason: rec.reason || '-',
+                onlineReport: onlineInfo
+              });
+            }
+          });
+        }
+      });
+    }
+
+    if (localSpecials.length > 0) {
+      localSpecials.sort((a, b) => b.date.localeCompare(a.date));
+      appState.studentRawSpecials = localSpecials;
+      if (!appState.selectedStudentMonth) {
+        appState.selectedStudentMonth = getAcademicSchoolMonths().some(m => m.ym === curYM) ? curYM : getAcademicSchoolMonths()[0].ym;
+      }
+      renderStudentMonthTabs();
+      renderStudentMonthSpecialList();
+    } else {
+      c.innerHTML = '<div class="text-secondary small p-3"><span class="spinner-border spinner-border-sm me-2"></span>특이사항을 불러오는 중입니다...</div>';
+    }
+
+    // 2. 백엔드에서 최신 특이사항 동기화 (타임아웃 4초로 무한 로딩 원천 차단)
+    try {
+      const apiPromise = callApi('getStudentAttendanceHistory', { studentId: sId });
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 4000));
+      const res = await Promise.race([apiPromise, timeoutPromise]);
+
+      if (res && res.success && Array.isArray(res.specialRecords)) {
+        appState.studentRawSpecials = res.specialRecords;
+      }
+    } catch (err) {
+      console.warn('loadStudentSpecialRecords error:', err);
+    } finally {
+      if (!appState.selectedStudentMonth) {
+        appState.selectedStudentMonth = getAcademicSchoolMonths().some(m => m.ym === curYM) ? curYM : getAcademicSchoolMonths()[0].ym;
+      }
       renderStudentMonthTabs();
       renderStudentMonthSpecialList();
     }

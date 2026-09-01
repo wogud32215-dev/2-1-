@@ -5,13 +5,14 @@
 function doGet(e) {
   const action = e.parameter.action;
   const callback = e.parameter.callback;
+  const todayStrParam = e.parameter.todayStr;
   let result = { success: false, message: 'Invalid Action' };
 
   try {
     if (action === 'getInitialData') {
-      result = getInitialDataFast();
+      result = getInitialDataFast(todayStrParam);
     } else if (action === 'getTodayAttendanceStatus') {
-      result = getTodayAttendanceStatus();
+      result = getTodayAttendanceStatus(todayStrParam);
     } else if (action === 'getStudentAttendanceHistory') {
       result = getStudentAttendanceHistory(e.parameter.studentId);
     } else if (action === 'getMonthAttendanceMatrix') {
@@ -106,18 +107,20 @@ function invalidateFastCache() {
   cache.remove('MEAL_DATA');
 }
 
-function getInitialDataFast() {
+function getInitialDataFast(targetTodayStr) {
+  const kstToday = targetTodayStr || Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+  const cacheKey = 'APP_INITIAL_DATA_' + kstToday;
   const cache = CacheService.getScriptCache();
-  const cached = cache.get('APP_INITIAL_DATA');
+  const cached = cache.get(cacheKey);
   if (cached) {
     try {
       return JSON.parse(cached);
     } catch (e) {}
   }
 
-  const rawData = getInitialData();
+  const rawData = getInitialData(kstToday);
   try {
-    cache.put('APP_INITIAL_DATA', JSON.stringify(rawData), 600); // 10분 캐싱
+    cache.put(cacheKey, JSON.stringify(rawData), 600); // 10분 캐싱
   } catch (e) {}
   return rawData;
 }
@@ -420,7 +423,7 @@ function fetchTodayAttendanceMap(todayStr, ssInstance) {
   for (let i = recordRows.length - 1; i >= 1; i--) {
     const rawDate = recordRows[i][colMap.date];
     const rDate = (rawDate instanceof Date) 
-      ? Utilities.formatDate(rawDate, Session.getScriptTimeZone(), 'yyyy-MM-dd') 
+      ? Utilities.formatDate(rawDate, 'Asia/Seoul', 'yyyy-MM-dd') 
       : String(rawDate).trim();
 
     if (rDate === todayStr) {
@@ -558,42 +561,46 @@ function saveNoticeAndDDayData(payload) {
 }
 
 function getStudentAttendanceHistory(studentId) {
-  const ss = setupSpreadsheet();
-  const recordSheet = ss.getSheetByName('출결기록');
-  const onlineReports = fetchOnlineReportsMap(ss);
-  if (!recordSheet || recordSheet.getLastRow() <= 1) return { success: true, specialRecords: [] };
+  try {
+    const ss = setupSpreadsheet();
+    const recordSheet = ss.getSheetByName('출결기록');
+    const onlineReports = fetchOnlineReportsMap(ss);
+    if (!recordSheet || recordSheet.getLastRow() <= 1) return { success: true, specialRecords: [] };
 
-  const sId = parseInt(studentId, 10);
-  const rows = recordSheet.getDataRange().getValues();
-  const colMap = getColumnIndexMap(rows[0]);
-  const specials = [];
+    const sId = parseInt(studentId, 10);
+    const rows = recordSheet.getDataRange().getValues();
+    const colMap = getColumnIndexMap(rows[0]);
+    const specials = [];
 
-  for (let i = 1; i < rows.length; i++) {
-    if (parseInt(rows[i][colMap.id], 10) === sId) {
-      const status = String(rows[i][colMap.status] || '출석').trim();
-      if (status !== '출석' && status !== '미출석' && status !== '') {
-        const rawDate = rows[i][colMap.date];
-        const rDate = (rawDate instanceof Date) 
-          ? Utilities.formatDate(rawDate, Session.getScriptTimeZone(), 'yyyy-MM-dd') 
-          : String(rawDate).trim();
+    for (let i = 1; i < rows.length; i++) {
+      if (parseInt(rows[i][colMap.id], 10) === sId) {
+        const status = String(rows[i][colMap.status] || '출석').trim();
+        if (status !== '출석' && status !== '미출석' && status !== '') {
+          const rawDate = rows[i][colMap.date];
+          const rDate = (rawDate instanceof Date) 
+            ? Utilities.formatDate(rawDate, 'Asia/Seoul', 'yyyy-MM-dd') 
+            : String(rawDate).trim();
 
-        const onlineInfo = (onlineReports[sId] && onlineReports[sId][rDate]) ? onlineReports[sId][rDate] : null;
-        specials.push({
-          date: rDate,
-          time: formatDateToCustomString(rows[i][colMap.time]),
-          status: status,
-          period: (colMap.period !== -1 && rows[i][colMap.period]) ? String(rows[i][colMap.period]) : '종일',
-          reason: (colMap.reason !== -1 && rows[i][colMap.reason]) ? String(rows[i][colMap.reason]) : '-',
-          onlineReport: onlineInfo
-        });
+          const onlineInfo = (onlineReports[sId] && onlineReports[sId][rDate]) ? onlineReports[sId][rDate] : null;
+          specials.push({
+            date: rDate,
+            time: formatDateToCustomString(rows[i][colMap.time]),
+            status: status,
+            period: (colMap.period !== -1 && rows[i][colMap.period]) ? String(rows[i][colMap.period]) : '종일',
+            reason: (colMap.reason !== -1 && rows[i][colMap.reason]) ? String(rows[i][colMap.reason]) : '-',
+            onlineReport: onlineInfo
+          });
+        }
       }
     }
+    specials.sort((a, b) => b.date.localeCompare(a.date));
+    return { success: true, specialRecords: specials };
+  } catch (err) {
+    return { success: false, message: err.toString(), specialRecords: [] };
   }
-  specials.sort((a, b) => b.date.localeCompare(a.date));
-  return { success: true, specialRecords: specials };
 }
 
-function getInitialData() {
+function getInitialData(targetTodayStr) {
   const ss = setupSpreadsheet();
   const students = getStudentMasterData(ss);
   const config = {
@@ -640,7 +647,7 @@ function getInitialData() {
     }
   }
 
-  const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const todayStr = targetTodayStr || Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
   const currentYM = todayStr.substring(0, 7);
   const currentMonthMatrix = getMonthAttendanceMatrix(currentYM);
 
@@ -765,7 +772,7 @@ function getMonthAttendanceMatrix(yearMonth) {
   for (let i = 1; i < rows.length; i++) {
     const rawDate = rows[i][colMap.date];
     const rDate = (rawDate instanceof Date) 
-      ? Utilities.formatDate(rawDate, Session.getScriptTimeZone(), 'yyyy-MM-dd') 
+      ? Utilities.formatDate(rawDate, 'Asia/Seoul', 'yyyy-MM-dd') 
       : String(rawDate).trim();
 
     if (rDate.startsWith(yearMonth)) {
@@ -807,7 +814,7 @@ function saveNeisData(period, parsedData) {
     }
 
     const students = getStudentMasterData(ss);
-    const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    const nowStr = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
     const rowsToSave = [[
       '번호', '이름', 
       '결석_질병', '결석_미인정', '결석_기타', '결석_인정', 
@@ -861,8 +868,8 @@ function updateStudentRoster(rosterList) {
   }
 }
 
-function getTodayAttendanceStatus() {
-  const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+function getTodayAttendanceStatus(targetTodayStr) {
+  const todayStr = targetTodayStr || Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
   return { success: true, todayStr: todayStr, records: fetchTodayAttendanceMap(todayStr) };
 }
 
@@ -905,7 +912,9 @@ function submitSelfAttendance(studentId, inputPin, userLat, userLng) {
     }
 
     const now = new Date();
-    const currentMinVal = now.getHours() * 60 + now.getMinutes();
+    // UTC offset to KST
+    const kstNow = new Date(now.getTime() + (9 * 60 + now.getTimezoneOffset()) * 60000);
+    const currentMinVal = kstNow.getHours() * 60 + kstNow.getMinutes();
     const sParts = startTime.split(':'), eParts = endTime.split(':');
     const startMinVal = parseInt(sParts[0], 10) * 60 + parseInt(sParts[1] || '0', 10);
     const endMinVal = parseInt(eParts[0], 10) * 60 + parseInt(eParts[1] || '0', 10);
@@ -928,15 +937,15 @@ function submitSelfAttendance(studentId, inputPin, userLat, userLng) {
     const studentName = studentObj ? studentObj.name : `학생${sId}`;
 
     const recordSheet = ss.getSheetByName('출결기록');
-    const todayStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    const nowStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    const todayStr = Utilities.formatDate(now, 'Asia/Seoul', 'yyyy-MM-dd');
+    const nowStr = Utilities.formatDate(now, 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
     const recordData = recordSheet.getDataRange().getValues();
     const colMap = getColumnIndexMap(recordData[0]);
     let foundRow = -1;
 
     for (let j = recordData.length - 1; j >= 1; j--) {
       const rawD = recordData[j][colMap.date];
-      const rDate = (rawD instanceof Date) ? Utilities.formatDate(rawD, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(rawD).trim();
+      const rDate = (rawD instanceof Date) ? Utilities.formatDate(rawD, 'Asia/Seoul', 'yyyy-MM-dd') : String(rawD).trim();
       if (rDate === todayStr && parseInt(recordData[j][colMap.id], 10) === sId) { foundRow = j + 1; break; }
     }
 
@@ -969,15 +978,15 @@ function updateManualAttendance(studentId, status, period, reason, targetDate) {
 
     const recordSheet = ss.getSheetByName('출결기록');
     const now = new Date();
-    const effectiveDate = targetDate ? String(targetDate).trim() : Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    const nowStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    const effectiveDate = targetDate ? String(targetDate).trim() : Utilities.formatDate(now, 'Asia/Seoul', 'yyyy-MM-dd');
+    const nowStr = Utilities.formatDate(now, 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
     const recordData = recordSheet.getDataRange().getValues();
     const colMap = getColumnIndexMap(recordData[0]);
     let foundRow = -1;
 
     for (let j = recordData.length - 1; j >= 1; j--) {
       const rawD = recordData[j][colMap.date];
-      const rDate = (rawD instanceof Date) ? Utilities.formatDate(rawD, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(rawD).trim();
+      const rDate = (rawD instanceof Date) ? Utilities.formatDate(rawD, 'Asia/Seoul', 'yyyy-MM-dd') : String(rawD).trim();
       if (rDate === effectiveDate && parseInt(recordData[j][colMap.id], 10) === sId) { foundRow = j + 1; break; }
     }
 
