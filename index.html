@@ -34,362 +34,606 @@
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135755.png">
   <link rel="icon" sizes="192x192" href="https://cdn-icons-png.flaticon.com/512/3135/3135755.png">
 
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
   <style>
     :root {
-      --bg-dark: #0f172a;
-      --card-bg: #1e293b;
-      --border-color: #334155;
+      --bg-dark: #0b1120;
+      --card-bg: #151f32;
+      --card-inner: #0d1526;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-focus: #38bdf8;
       --accent-blue: #38bdf8;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
+      --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+      --card-shadow-hover: 0 20px 30px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(56, 189, 248, 0.2);
     }
     body {
       background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 10% 10%, rgba(56, 189, 248, 0.06) 0px, transparent 50%),
+        radial-gradient(at 90% 90%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+      background-attachment: fixed;
       color: var(--text-main);
       font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding-bottom: 60px;
+      padding-bottom: 80px;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.015em;
     }
     .card-custom {
       background-color: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      backdrop-filter: blur(8px);
+    }
+    .card-custom:hover {
+      border-color: rgba(56, 189, 248, 0.25);
     }
     .dday-banner-container {
       display: flex;
-      gap: 10px;
+      gap: 14px;
       overflow-x: auto;
-      padding-bottom: 8px;
-      margin-bottom: 20px;
+      padding-bottom: 12px;
+      margin-bottom: 24px;
+      scrollbar-width: thin;
+    }
+    .dday-banner-container::-webkit-scrollbar {
+      height: 5px;
+    }
+    .dday-banner-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 4px;
     }
     .dday-card {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
-      border: 1px solid #38bdf8;
-      border-radius: 10px;
-      padding: 10px 16px;
-      min-width: 200px;
+      background: linear-gradient(135deg, rgba(21, 31, 50, 0.85), rgba(13, 21, 38, 0.92));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 14px 20px;
+      min-width: 250px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      gap: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(12px);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
     }
-    .dday-badge {
-      font-size: 1.15rem;
-      font-weight: 800;
-      padding: 4px 8px;
+    .dday-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      border-radius: 4px 0 0 4px;
+    }
+    .dday-card-urgent::before {
+      background: linear-gradient(to bottom, #f43f5e, #ef4444);
+      box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
+    }
+    .dday-card-warning::before {
+      background: linear-gradient(to bottom, #f59e0b, #d97706);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    }
+    .dday-card-normal::before {
+      background: linear-gradient(to bottom, #38bdf8, #0284c7);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    }
+    .dday-card-passed::before {
+      background: #64748b;
+    }
+
+    .dday-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
+    }
+    .dday-tag-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
       border-radius: 6px;
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
-    .dday-urgent { background-color: #ef4444; color: #fff; animation: pulse 2s infinite; }
-    .dday-warning { background-color: #f59e0b; color: #000; }
-    .dday-normal { background-color: #38bdf8; color: #000; }
-    .dday-passed { background-color: #64748b; color: #fff; }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
+    .dday-tag-urgent { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .dday-tag-warning { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .dday-tag-normal { background: rgba(56, 189, 248, 0.12); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .dday-tag-passed { background: rgba(148, 163, 184, 0.12); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.25); }
+
+    .dday-badge {
+      font-size: 1.18rem;
+      font-weight: 800;
+      padding: 6px 14px;
+      border-radius: 12px;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dday-badge-urgent {
+      background: rgba(244, 63, 94, 0.18);
+      color: #fda4af;
+      border: 1px solid rgba(244, 63, 94, 0.5);
+      box-shadow: 0 0 12px rgba(244, 63, 94, 0.25);
+      animation: pulse-glow 2s infinite ease-in-out;
+    }
+    .dday-badge-warning {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fde68a;
+      border: 1px solid rgba(245, 158, 11, 0.5);
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+    }
+    .dday-badge-normal {
+      background: rgba(56, 189, 248, 0.15);
+      color: #bae6fd;
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.18);
+    }
+    .dday-badge-passed {
+      background: rgba(100, 116, 139, 0.15);
+      color: #94a3b8;
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(244, 63, 94, 0.25); }
+      50% { transform: scale(1.03); box-shadow: 0 0 18px rgba(244, 63, 94, 0.5); }
     }
     .notice-card {
-      background-color: #1e293b;
-      border: 1px solid #334155;
-      border-left: 4px solid #10b981;
-      border-radius: 8px;
-      padding: 14px 16px;
+      background-color: var(--card-inner);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-left: 4px solid var(--accent-emerald);
+      border-radius: 12px;
+      padding: 16px 18px;
       margin-bottom: 12px;
+      transition: background-color 0.15s;
+    }
+    .notice-card:hover {
+      background-color: rgba(16, 185, 129, 0.06);
     }
     .stat-badge {
-      background: #0f172a;
+      background: var(--card-inner);
       border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px;
+      border-radius: 14px;
+      padding: 16px;
       text-align: center;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .stat-badge:hover {
+      transform: translateY(-2px);
+      border-color: rgba(56, 189, 248, 0.3);
     }
     .stat-title {
       font-size: 0.82rem;
       color: var(--text-muted);
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      font-weight: 600;
     }
     .stat-num {
-      font-size: 1.15rem;
-      font-weight: 700;
+      font-size: 1.25rem;
+      font-weight: 800;
       color: var(--accent-blue);
+      letter-spacing: -0.02em;
     }
     .stat-unauth {
       font-size: 0.92rem;
-      font-weight: bold;
-      margin-top: 6px;
+      font-weight: 700;
+      margin-top: 8px;
       color: #f87171;
     }
     .period-badge {
-      font-size: 0.9rem;
-      background: rgba(56, 189, 248, 0.15);
-      border: 1px solid var(--accent-blue);
+      font-size: 0.88rem;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
       color: var(--accent-blue);
-      padding: 4px 10px;
-      border-radius: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-weight: 600;
     }
     .form-control, .form-select {
-      background-color: #0f172a;
+      background-color: var(--card-inner);
       border: 1px solid var(--border-color);
       color: #fff;
+      border-radius: 10px;
+      padding: 10px 14px;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
     .form-control:focus, .form-select:focus {
-      background-color: #0f172a;
+      background-color: var(--card-inner);
       color: #fff;
       border-color: var(--accent-blue);
-      box-shadow: 0 0 0 0.25rem rgba(56, 189, 248, 0.25);
+      box-shadow: 0 0 0 0.25rem rgba(56, 189, 248, 0.2);
+    }
+    .nav-tabs {
+      border-bottom: 1px solid var(--border-color);
+      gap: 4px;
     }
     .nav-tabs .nav-link {
-      color: #94a3b8;
+      color: var(--text-muted);
       border: none;
-      font-weight: 500;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 10px 10px 0 0;
+      transition: all 0.15s;
+    }
+    .nav-tabs .nav-link:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.04);
     }
     .nav-tabs .nav-link.active {
-      color: #38bdf8;
-      background: transparent;
-      border-bottom: 2px solid #38bdf8;
-      font-weight: bold;
+      color: var(--accent-blue);
+      background: var(--card-inner);
+      border-bottom: 3px solid var(--accent-blue);
+      font-weight: 700;
     }
     .status-badge {
       display: inline-block;
-      padding: 4px 10px;
+      padding: 5px 12px;
       font-size: 0.82rem;
       font-weight: 700;
-      border-radius: 6px;
+      border-radius: 20px;
       white-space: nowrap;
+      letter-spacing: -0.01em;
     }
-    .badge-present { background-color: #10b981; color: #fff; }
-    .badge-unauth { background-color: #ef4444; color: #fff; }
-    .badge-disease { background-color: #a855f7; color: #fff; }
-    .badge-auth { background-color: #06b6d4; color: #000; }
-    .badge-etc { background-color: #eab308; color: #000; }
-    .badge-absent-null { background-color: #475569; color: #fff; }
+    .badge-present { background-color: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-unauth { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .badge-disease { background-color: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .badge-auth { background-color: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4); }
+    .badge-etc { background-color: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); }
+    .badge-absent-null { background-color: rgba(100, 116, 139, 0.2); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.4); }
     .period-tag {
-      font-size: 0.72rem;
-      background-color: rgba(56, 189, 248, 0.2);
-      border: 1px solid #38bdf8;
+      font-size: 0.75rem;
+      background-color: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
       color: #38bdf8;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-weight: bold;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
     }
     .report-badge {
-      font-size: 0.72rem;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: bold;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
     }
     .report-done {
-      background-color: rgba(16, 185, 129, 0.2);
-      border: 1px solid #10b981;
+      background-color: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
       color: #34d399;
     }
     .report-pending {
-      background-color: rgba(245, 158, 11, 0.2);
-      border: 1px solid #f59e0b;
+      background-color: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
       color: #fbbf24;
     }
     .report-none {
-      background-color: rgba(148, 163, 184, 0.15);
-      border: 1px solid #64748b;
+      background-color: rgba(148, 163, 184, 0.1);
+      border: 1px solid rgba(148, 163, 184, 0.3);
       color: #94a3b8;
     }
     .reason-btn, .preset-btn {
-      font-size: 0.78rem;
-      padding: 3px 8px;
-      margin: 2px;
-      border-radius: 12px;
-      border: 1px solid #475569;
-      background-color: #0f172a;
+      font-size: 0.8rem;
+      padding: 5px 12px;
+      margin: 3px;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      background-color: var(--card-inner);
       color: #cbd5e1;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.2s ease;
+      font-weight: 500;
     }
     .reason-btn:hover, .preset-btn:hover {
-      background-color: #38bdf8;
-      color: #0f172a;
-      font-weight: bold;
+      background-color: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: #082f49;
+      font-weight: 700;
+      transform: translateY(-1px);
     }
     .preset-btn {
-      border-color: #0284c7;
+      border-color: rgba(56, 189, 248, 0.3);
       color: #7dd3fc;
     }
     .student-month-tabs-container {
       overflow-x: auto;
       white-space: nowrap;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #334155;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
     }
     .month-pill-btn {
-      background-color: #0f172a;
+      background-color: var(--card-inner);
       color: #94a3b8;
-      border: 1px solid #334155;
-      border-radius: 20px;
-      padding: 5px 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 6px 16px;
       font-size: 0.85rem;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      margin-right: 6px;
+      margin-right: 8px;
+      transition: all 0.2s ease;
+      font-weight: 600;
+    }
+    .month-pill-btn:hover {
+      color: #fff;
+      border-color: rgba(56, 189, 248, 0.4);
     }
     .month-pill-btn.active {
-      background-color: #38bdf8;
-      color: #0f172a;
-      font-weight: 700;
+      background-color: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: #082f49;
+      font-weight: 800;
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
     }
     .meal-box {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
-      border: 1px solid #38bdf8;
-      border-radius: 12px;
-      padding: 16px 20px;
+      background: linear-gradient(135deg, rgba(21, 31, 50, 0.95), rgba(13, 21, 38, 0.98));
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 16px;
+      padding: 20px 24px;
       height: 100%;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      box-shadow: var(--card-shadow);
     }
     .meal-item-tag {
       display: inline-block;
-      background-color: rgba(56, 189, 248, 0.12);
-      border: 1px solid rgba(56, 189, 248, 0.3);
+      background-color: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.25);
       color: #f8fafc;
-      padding: 4px 10px;
-      border-radius: 6px;
+      padding: 6px 12px;
+      border-radius: 10px;
       font-size: 0.88rem;
-      margin: 2px;
+      margin: 3px;
+      font-weight: 500;
     }
     .student-special-item {
-      background-color: #0f172a;
-      border: 1px solid #334155;
-      border-left: 4px solid #f59e0b;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 8px;
+      background-color: var(--card-inner);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent-amber);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      transition: transform 0.15s;
+    }
+    .student-special-item:hover {
+      transform: translateX(2px);
     }
     .matrix-container {
       overflow-x: auto;
       border: 1px solid var(--border-color);
-      border-radius: 8px;
+      border-radius: 12px;
+      background-color: var(--card-inner);
     }
     .matrix-table {
       margin-bottom: 0;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       white-space: nowrap;
     }
     .matrix-table th, .matrix-table td {
-      padding: 6px 4px;
+      padding: 8px 6px;
       text-align: center;
       vertical-align: middle;
-      border: 1px solid #334155;
+      border: 1px solid var(--border-color);
     }
     .sticky-col {
       position: sticky;
       left: 0;
-      background-color: #1e293b !important;
+      background-color: var(--card-bg) !important;
       z-index: 2;
     }
-    .col-sat { color: #60a5fa !important; background-color: rgba(59, 130, 246, 0.08); }
-    .col-sun { color: #f87171 !important; background-color: rgba(239, 68, 68, 0.08); }
+    .col-sat { color: #60a5fa !important; background-color: rgba(59, 130, 246, 0.06); }
+    .col-sun { color: #f87171 !important; background-color: rgba(239, 68, 68, 0.06); }
     .cell-badge {
       display: inline-block;
-      width: 24px;
-      height: 24px;
-      line-height: 24px;
-      border-radius: 4px;
+      width: 26px;
+      height: 26px;
+      line-height: 26px;
+      border-radius: 6px;
       font-weight: bold;
       font-size: 0.75rem;
       cursor: pointer;
       position: relative;
+      transition: transform 0.15s;
+    }
+    .cell-badge:hover {
+      transform: scale(1.15);
     }
     .cell-report-dot {
       position: absolute;
       top: -2px;
       right: -2px;
-      width: 7px;
-      height: 7px;
-      background-color: #10b981;
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent-emerald);
       border-radius: 50%;
-      border: 1px solid #0f172a;
+      border: 2px solid var(--card-inner);
     }
     .day-report-card {
-      background-color: #1e293b;
-      border: 1px solid #334155;
-      border-left: 4px solid #38bdf8;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 12px;
+      background-color: var(--card-inner);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent-blue);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
     }
     .day-report-title {
       font-weight: 700;
-      color: #38bdf8;
-      font-size: 0.95rem;
+      color: var(--accent-blue);
+      font-size: 0.98rem;
       margin-bottom: 8px;
     }
     .day-student-row {
-      padding: 8px 0;
-      border-bottom: 1px dashed #334155;
-      font-size: 0.88rem;
+      padding: 10px 0;
+      border-bottom: 1px dashed var(--border-color);
+      font-size: 0.9rem;
     }
     .day-student-row:last-child {
       border-bottom: none;
     }
     .warning-alert-card {
-      background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(15, 23, 42, 0.9));
-      border: 1px solid #ef4444;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(13, 21, 38, 0.95));
+      border: 1px solid rgba(239, 68, 68, 0.4);
       border-left: 5px solid #ef4444;
-      border-radius: 8px;
-      padding: 14px 16px;
+      border-radius: 14px;
+      padding: 16px 20px;
     }
     .safe-alert-card {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(15, 23, 42, 0.9));
-      border: 1px solid #10b981;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(13, 21, 38, 0.95));
+      border: 1px solid rgba(16, 185, 129, 0.4);
       border-left: 5px solid #10b981;
+      border-radius: 14px;
+      padding: 16px 20px;
+    }
+    
+    /* 📊 실시간 출결 현황 요약 통계 배너 */
+    .live-summary-banner {
+      border-radius: 12px;
+      padding: 10px 14px;
+      transition: all 0.25s ease;
+    }
+    .live-summary-perfect {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 78, 59, 0.25));
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+    }
+    .live-summary-partial {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.95));
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .live-stat-chip {
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 10px;
       border-radius: 8px;
-      padding: 14px 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .live-chip-present { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .live-chip-unauth { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .live-chip-late { background: rgba(234, 179, 8, 0.18); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); }
+    .live-chip-early { background: rgba(249, 115, 22, 0.18); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
+    .live-chip-absent { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .live-chip-unregistered { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+    
+    /* 📱 모바일 하단 플로팅 퀵바 */
+    .mobile-quick-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 12px;
+      z-index: 1030;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+    }
+    @media (min-width: 992px) {
+      .mobile-quick-nav {
+        display: none;
+      }
+    }
+    .mobile-nav-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: transparent;
+      border: none;
+      padding: 4px 8px;
+    }
+    .mobile-nav-btn i {
+      font-size: 1.15rem;
+    }
+    .mobile-nav-btn.active, .mobile-nav-btn:hover {
+      color: var(--accent-blue);
     }
   </style>
 </head>
 <body>
 
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+<!-- 🔔 시스템 토스트 알림 컨테이너 -->
+<div id="appToastContainer" style="position: fixed; top: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+
+<div class="container mt-3 mb-5">
+  <!-- 🌟 글로벌 상단 헤더 바 -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 pb-2 border-bottom border-secondary border-opacity-25">
     <div>
-      <div class="d-flex align-items-center gap-2">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
         <h3 class="fw-bold mb-0">🏫 2기계1반 학급시스템</h3>
         <span id="offlineStatusBadge" class="badge bg-danger" style="display:none;"><i class="bi bi-wifi-off"></i> 오프라인 모드</span>
+        <span id="globalTeacherActiveBadge" class="badge bg-warning text-dark fw-bold px-2 py-1" style="display:none;"><i class="bi bi-shield-lock-fill me-1"></i>교사 관리 모드 활성</span>
       </div>
-      <p class="text-secondary small mb-0">초고속 클라우드 웹앱 · 실시간 출석 · 온라인 출결 연동 · 급식 식단</p>
+      <p class="text-secondary small mb-0" id="headerSubtitleText">초고속 클라우드 웹앱 · 실시간 출석 · 온라인 출결 연동 · 급식 식단</p>
     </div>
-    <div class="d-flex gap-2 align-items-center">
+    <div class="d-flex gap-2 align-items-center flex-wrap" id="headerActionButtons">
       <button class="btn btn-warning btn-sm fw-bold" id="btnAddToHomeScreen" onclick="openPwaGuideModal()"><i class="bi bi-phone"></i> 홈 화면 추가</button>
-      <button class="btn btn-outline-info btn-sm" onclick="openTeacherModal()"><i class="bi bi-shield-lock"></i> 교사 관리자</button>
+      <button class="btn btn-outline-info btn-sm fw-bold" id="btnHeaderTeacherAction" onclick="openTeacherModal()"><i class="bi bi-shield-lock me-1"></i>교사 관리자</button>
     </div>
   </div>
 
-  <!-- 🚀 D-Day 카운터 배너 -->
-  <div id="ddayBannerContainer" class="dday-banner-container"></div>
-
-  <!-- 메인 상단: 알림장 & 급식 식단 & 로그인 섹션 -->
-  <div class="row g-3 mb-4">
-    <!-- 📢 오늘의 알림장 카드 -->
-    <div class="col-lg-6">
-      <div class="card-custom h-100 mb-0 border-success">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="fw-bold mb-0 text-success"><i class="bi bi-megaphone-fill"></i> <span id="displayNoticeMainTitle">오늘의 학급 알림장</span></h5>
-          <span class="badge bg-dark border border-secondary text-info" id="noticeUpdateBadge">공지사항</span>
+  <!-- ========================================== -->
+  <!-- 🏠 [VIEW 1] 학생 / 학부모 공개 학급 홈 뷰 -->
+  <!-- ========================================== -->
+  <div id="publicHomeView">
+    <!-- 👨‍🏫 교사 관리자 복귀 알림 배너 (학급 홈 뷰 임시 확인 중일 때 노출) -->
+    <div id="teacherReturnBanner" class="alert alert-info py-2 px-3 mb-3 d-flex justify-content-between align-items-center shadow-sm flex-wrap gap-2" style="display:none; border-radius:14px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35);">
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-5">👁️</span>
+        <div>
+          <strong class="text-info">학생 / 학부모 공개 홈 화면을 보고 있습니다.</strong>
+          <span class="text-secondary small d-none d-md-inline ms-1">(교사 관리자 세션이 유지되고 있습니다)</span>
         </div>
-        <div id="noticeContentContainer" style="max-height: 180px; overflow-y: auto;"></div>
+      </div>
+      <button class="btn btn-info btn-sm fw-bold px-3" onclick="enterTeacherDashboardView(true)">
+        <i class="bi bi-shield-lock-fill me-1"></i> 관리자 포털로 복귀
+      </button>
+    </div>
+
+    <!-- 🚀 D-Day 카운터 배너 -->
+    <div id="ddayBannerContainer" class="dday-banner-container"></div>
+
+  <!-- 메인 상단: Bento Grid 대시보드 (알림장 & 급식 & 학생로그인) -->
+  <div class="row g-3 mb-4">
+    <!-- 📢 오늘의 알림장 카드 (Bento 6칸) -->
+    <div class="col-lg-6">
+      <div class="card-custom h-100 mb-0">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0 text-success"><i class="bi bi-megaphone-fill me-2"></i><span id="displayNoticeMainTitle">오늘의 학급 알림장</span></h5>
+          <span class="badge bg-dark border border-secondary text-info px-2 py-1" id="noticeUpdateBadge">공지사항</span>
+        </div>
+        <div id="noticeContentContainer" style="max-height: 190px; overflow-y: auto;"></div>
       </div>
     </div>
 
-    <!-- 🍱 오늘의 급식 식단 카드 -->
+    <!-- 🍱 오늘의 급식 식단 카드 (Bento 6칸) -->
     <div class="col-lg-6">
       <div class="meal-box">
         <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
           <div class="d-flex align-items-center gap-1">
-            <h5 class="fw-bold mb-0 text-warning"><i class="bi bi-egg-fried"></i> 오늘의 급식 식단</h5>
+            <h5 class="fw-bold mb-0 text-warning"><i class="bi bi-egg-fried me-2"></i>오늘의 급식 식단</h5>
             <span id="todayMealDateBadge" class="badge bg-secondary ms-1">로딩 중</span>
           </div>
           <div class="btn-group btn-group-sm">
@@ -402,22 +646,28 @@
       </div>
     </div>
 
-    <!-- 👤 학생 / 학부모 조회 로그인 -->
+    <!-- 👤 학생 / 학부모 조회 로그인 (Bento 12칸 Full Width Card) -->
     <div class="col-12">
       <div id="studentLoginSection" class="card-custom mb-0">
-        <h5 class="fw-bold mb-2"><i class="bi bi-person-badge"></i> 학생 / 학부모 조회 로그인</h5>
-        <p class="text-secondary small mb-3">개인 식별번호(PIN 4자리)를 입력하여 본인의 실시간 출결, 월별 특이사항 및 <strong>온라인 출결서류 제출 상태</strong>를 확인하세요.</p>
-        <div class="row g-2 align-items-center">
-          <div class="col-auto">
-            <select id="studentSelect" class="form-select">
-              <option value="">학생 번호/이름 로딩 중...</option>
-            </select>
+        <div class="row align-items-center">
+          <div class="col-lg-6 col-12 mb-3 mb-lg-0">
+            <h5 class="fw-bold mb-1 text-info"><i class="bi bi-person-badge me-2"></i>학생 / 학부모 맞춤 조회</h5>
+            <p class="text-secondary small mb-0">개인 식별번호(PIN 4자리)를 입력하여 본인의 실시간 출결, 월별 특이사항 및 <strong>온라인 출결서류 제출 상태</strong>를 확인하세요.</p>
           </div>
-          <div class="col-auto">
-            <input type="password" id="studentPinInput" class="form-control" placeholder="식별번호(PIN)" maxlength="6" onkeydown="if(event.key==='Enter') loginStudent();">
-          </div>
-          <div class="col-auto">
-            <button class="btn btn-primary" id="btnStudentLogin" onclick="loginStudent()"><i class="bi bi-box-arrow-in-right"></i> 조회하기</button>
+          <div class="col-lg-6 col-12">
+            <div class="row g-2 align-items-center justify-content-lg-end">
+              <div class="col-sm-5 col-12">
+                <select id="studentSelect" class="form-select">
+                  <option value="">학생 번호/이름 로딩 중...</option>
+                </select>
+              </div>
+              <div class="col-sm-4 col-7">
+                <input type="password" id="studentPinInput" class="form-control" placeholder="식별번호(PIN)" maxlength="6" onkeydown="if(event.key==='Enter') loginStudent();">
+              </div>
+              <div class="col-sm-3 col-5">
+                <button class="btn btn-primary w-100 fw-bold" id="btnStudentLogin" onclick="loginStudent()"><i class="bi bi-box-arrow-in-right me-1"></i> 조회</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -501,10 +751,12 @@
 
     <!-- 오늘 우리 반 실시간 출석 현황 -->
     <div class="card-custom">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
         <h5 class="fw-bold mb-0 text-success"><i class="bi bi-person-check-fill"></i> 오늘 우리 반 실시간 출석 현황</h5>
         <button class="btn btn-outline-info btn-sm" id="btnStudentRefresh" onclick="refreshStudentAttendance()"><i class="bi bi-arrow-clockwise"></i> 새로고침</button>
       </div>
+      <!-- 📊 실시간 출결 요약 통계 배너 -->
+      <div id="studentLiveSummaryBanner" class="live-summary-banner mb-3"></div>
       <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
         <table class="table table-dark table-sm align-middle text-center">
           <thead>
@@ -521,18 +773,21 @@
         </table>
       </div>
     </div>
-  </div>
+  </div><!-- /#studentDashboard -->
+</div><!-- /#publicHomeView -->
 
-  <!-- 3. 교사 관리자 포털 -->
-  <div id="teacherDashboard" class="card-custom mt-4" style="display: none;">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <div class="d-flex align-items-center gap-2">
-        <h4 class="fw-bold mb-0 text-warning"><i class="bi bi-gear-fill"></i> 담임교사 관리자 포털</h4>
-        <span id="teacherSessionBadge" class="badge bg-success" style="display:none;"><i class="bi bi-phone"></i> 이 기기 자동로그인 활성</span>
+  <!-- ========================================== -->
+  <!-- 👨‍🏫 [VIEW 2] 교사 전용 관리자 포털 (전체화면 전환 모드) -->
+  <!-- ========================================== -->
+  <div id="teacherDashboard" class="card-custom mt-2" style="display: none; border-color: rgba(245, 158, 11, 0.4);">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 pb-3 border-bottom border-secondary border-opacity-50">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <h4 class="fw-bold mb-0 text-warning"><i class="bi bi-shield-fill-check me-2"></i>담임교사 관리자 포털</h4>
+        <span id="teacherSessionBadge" class="badge bg-success px-2 py-1" style="display:none;"><i class="bi bi-phone me-1"></i>이 기기 자동로그인 활성</span>
       </div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-outline-danger btn-sm" onclick="logoutTeacherSession()"><i class="bi bi-box-arrow-right"></i> 관리자 로그아웃</button>
-        <button class="btn btn-outline-secondary btn-sm" onclick="closeTeacherPortal()">닫기</button>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-info btn-sm fw-bold" onclick="switchToPublicHomeView()"><i class="bi bi-house-door me-1"></i> 학급 홈 (학생 화면)</button>
+        <button class="btn btn-outline-danger btn-sm fw-bold" onclick="logoutTeacherSession()"><i class="bi bi-box-arrow-right me-1"></i> 관리자 로그아웃</button>
       </div>
     </div>
 
@@ -565,6 +820,8 @@
               <button class="btn btn-warning btn-sm" id="btnGenPin" onclick="generateNewPin()"><i class="bi bi-key"></i> 새 핀번호 생성</button>
             </div>
           </div>
+          <!-- 📊 실시간 출결 요약 통계 배너 -->
+          <div id="teacherLiveSummaryBanner" class="live-summary-banner mb-3"></div>
           <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
             <table class="table table-dark table-sm align-middle text-center">
               <thead><tr><th>번호</th><th>이름</th><th>상태</th><th>교시</th><th>사유</th><th>시간</th><th>인증/위치</th><th>출결 변경</th></tr></thead>
@@ -768,6 +1025,26 @@
     </div>
   </div>
 </div>
+
+<!-- 📱 모바일 전용 퀵 내비게이션 바 (뷰 전환 스마트 연동) -->
+<nav class="mobile-quick-nav">
+  <button class="mobile-nav-btn active" id="mobNavHomeBtn" onclick="switchToPublicHomeView(); window.scrollTo({top: 0, behavior: 'smooth'});">
+    <i class="bi bi-house-door"></i>
+    <span>학급홈</span>
+  </button>
+  <button class="mobile-nav-btn" id="mobNavMealBtn" onclick="switchToPublicHomeView(); document.getElementById('todayMealContent')?.scrollIntoView({behavior: 'smooth'})">
+    <i class="bi bi-egg-fried"></i>
+    <span>오늘급식</span>
+  </button>
+  <button class="mobile-nav-btn" id="mobNavStudentBtn" onclick="switchToPublicHomeView(); document.getElementById('studentLoginSection')?.scrollIntoView({behavior: 'smooth'}); document.getElementById('studentPinInput')?.focus();">
+    <i class="bi bi-person-check"></i>
+    <span>학생조회</span>
+  </button>
+  <button class="mobile-nav-btn" id="mobNavTeacherBtn" onclick="handleMobileTeacherNav()">
+    <i class="bi bi-shield-lock" id="mobNavTeacherIcon"></i>
+    <span id="mobNavTeacherText">교사관리</span>
+  </button>
+</nav>
 
 <!-- 📲 홈 화면 추가 안내 모달 -->
 <div class="modal fade" id="pwaGuideModal" tabindex="-1">
@@ -992,6 +1269,19 @@
     return dayNames[kst.getDay()];
   }
 
+  function normalizePin(pin) {
+    if (pin === null || pin === undefined) return '';
+    let str = String(pin).trim();
+    // 전각 숫자를 반각 숫자로 변환 (０-９ -> 0-9)
+    str = str.replace(/[０-９]/g, function(s) {
+      return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+    });
+    // 소수점 제거 (예: "1234.0" -> "1234")
+    str = str.replace(/\.0+$/, '');
+    // 숫자 외 공백 및 특수문자 제거
+    return str.replace(/[^0-9]/g, '');
+  }
+
   function callApi(action, payload = {}, isPost = false) {
     return new Promise((resolve) => {
       if (!isPost) {
@@ -1210,29 +1500,52 @@
     }
     container.style.display = 'flex';
     let html = '';
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
     ddays.forEach(d => {
       const diff = calculateDDayDiff(d.targetDate);
-      let badgeClass = 'dday-normal';
+      let statusKey = 'normal';
       let ddayText = '';
+      let statusIcon = '<i class="bi bi-calendar-event"></i>';
+
       if (diff > 0) {
         ddayText = `D-${diff}`;
-        if (diff <= 3) badgeClass = 'dday-urgent';
-        else if (diff <= 7) badgeClass = 'dday-warning';
+        if (diff <= 3) {
+          statusKey = 'urgent';
+          statusIcon = '<i class="bi bi-fire"></i>';
+        } else if (diff <= 7) {
+          statusKey = 'warning';
+          statusIcon = '<i class="bi bi-hourglass-split"></i>';
+        }
       } else if (diff === 0) {
         ddayText = 'D-DAY';
-        badgeClass = 'dday-urgent';
+        statusKey = 'urgent';
+        statusIcon = '<i class="bi bi-lightning-charge-fill"></i>';
       } else {
         ddayText = `D+${Math.abs(diff)}`;
-        badgeClass = 'dday-passed';
+        statusKey = 'passed';
+        statusIcon = '<i class="bi bi-check-circle"></i>';
+      }
+
+      let dateFormatted = d.targetDate ? d.targetDate.slice(5) : '';
+      if (d.targetDate && d.targetDate.length === 10) {
+        const tParts = d.targetDate.split('-');
+        const tDate = new Date(parseInt(tParts[0], 10), parseInt(tParts[1], 10) - 1, parseInt(tParts[2], 10));
+        dateFormatted = `${parseInt(tParts[1], 10)}.${parseInt(tParts[2], 10)} (${dayNames[tDate.getDay()]})`;
       }
 
       html += `
-        <div class="dday-card">
-          <div>
-            <div class="small text-secondary fw-bold">${d.tag || '일정'} · ${d.targetDate.slice(5)}</div>
-            <div class="fw-bold text-white text-truncate" style="max-width: 140px;">${d.title}</div>
+        <div class="dday-card dday-card-${statusKey}">
+          <div class="d-flex flex-column gap-1 overflow-hidden">
+            <div class="d-flex align-items-center gap-2">
+              <span class="dday-tag-pill dday-tag-${statusKey}">
+                ${statusIcon} ${d.tag || '학급일정'}
+              </span>
+              <span class="text-secondary small fw-medium" style="font-size: 0.76rem;">${dateFormatted}</span>
+            </div>
+            <div class="fw-bold text-white text-truncate" style="font-size: 0.96rem; max-width: 170px;" title="${d.title}">${d.title}</div>
           </div>
-          <span class="dday-badge ${badgeClass}">${ddayText}</span>
+          <span class="dday-badge dday-badge-${statusKey}">${ddayText}</span>
         </div>
       `;
     });
@@ -1593,20 +1906,108 @@
     return `<span class="report-badge report-pending"><i class="bi bi-hourglass-split me-1"></i>온라인제출(${onlineInfo.approvalStatus || '접수'})</span>`;
   }
 
+  function calculateTodayAttendanceStats() {
+    const total = appState.students.length;
+    let present = 0, absent = 0, late = 0, early = 0, result = 0, unauth = 0, unregistered = 0;
+
+    appState.students.forEach(st => {
+      const rec = appState.todayRecords[st.id];
+      const status = rec ? (rec.status || '출석') : '미출석';
+
+      if (status === '출석') {
+        present++;
+      } else if (status === '미출석') {
+        unregistered++;
+      } else {
+        if (status.includes('결석')) absent++;
+        else if (status.includes('지각')) late++;
+        else if (status.includes('조퇴')) early++;
+        else if (status.includes('결과')) result++;
+
+        if (status.includes('미인정')) unauth++;
+      }
+    });
+
+    const isAllPresent = (total > 0 && present === total);
+    return { total, present, absent, late, early, result, unauth, unregistered, isAllPresent };
+  }
+
+  function generateLiveSummaryBannerHtml(stats) {
+    if (!stats || stats.total === 0) {
+      return `<div class="text-secondary small text-center py-1">학생 목록을 불러오는 중입니다...</div>`;
+    }
+
+    if (stats.isAllPresent) {
+      return `
+        <div class="live-summary-perfect rounded-3 p-2 p-md-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="fs-4">🎉</span>
+            <div>
+              <div class="fw-bold text-success fs-6"><i class="bi bi-check-circle-fill me-1"></i> 전원 출석 완료! (100%)</div>
+              <div class="text-secondary small">현재 재적 학생 ${stats.total}명 전원이 정상 출석하였습니다.</div>
+            </div>
+          </div>
+          <span class="badge bg-success fs-6 px-3 py-2 fw-bold"><i class="bi bi-stars me-1"></i>전원 출석 (${stats.present}/${stats.total}명)</span>
+        </div>
+      `;
+    }
+
+    // 전원 출석이 아닐 때: 깔끔하고 직관적인 통계 칩 표시
+    const chips = [];
+    chips.push(`<span class="live-stat-chip live-chip-present"><i class="bi bi-person-check-fill"></i> 출석: ${stats.present}명</span>`);
+    if (stats.unregistered > 0) {
+      chips.push(`<span class="live-stat-chip live-chip-unregistered"><i class="bi bi-clock-history"></i> 미출석(미체크): ${stats.unregistered}명</span>`);
+    }
+    if (stats.absent > 0) {
+      chips.push(`<span class="live-stat-chip live-chip-absent"><i class="bi bi-person-x-fill"></i> 결석: ${stats.absent}명</span>`);
+    }
+    if (stats.late > 0) {
+      chips.push(`<span class="live-stat-chip live-chip-late"><i class="bi bi-alarm"></i> 지각: ${stats.late}명</span>`);
+    }
+    if (stats.early > 0) {
+      chips.push(`<span class="live-stat-chip live-chip-early"><i class="bi bi-box-arrow-right"></i> 조퇴: ${stats.early}명</span>`);
+    }
+    if (stats.result > 0) {
+      chips.push(`<span class="live-stat-chip live-chip-late"><i class="bi bi-journal-x"></i> 결과: ${stats.result}명</span>`);
+    }
+    if (stats.unauth > 0) {
+      chips.push(`<span class="live-stat-chip live-chip-unauth"><i class="bi bi-exclamation-octagon-fill"></i> 미인정: ${stats.unauth}명</span>`);
+    }
+
+    const rate = Math.round((stats.present / stats.total) * 100);
+
+    return `
+      <div class="live-summary-partial rounded-3 p-2 p-md-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="badge bg-primary px-2 py-1"><i class="bi bi-pie-chart-fill me-1"></i>실시간 출석률 ${rate}%</span>
+          <span class="text-white-50 small">총 <strong>${stats.total}</strong>명 중 <strong>${stats.present}</strong>명 출석</span>
+        </div>
+        <div class="d-flex align-items-center gap-1 flex-wrap">
+          ${chips.join('')}
+        </div>
+      </div>
+    `;
+  }
+
   function renderRealtimeAttendance() {
     const tbody = document.getElementById('realtimeAttendanceTbody'); if (!tbody) return; tbody.innerHTML = '';
-    let presentCount = 0; 
     const todayStr = getKstDateString();
     const liveBadge = document.getElementById('teacherLiveDateBadge');
     if (liveBadge) {
       liveBadge.innerHTML = `<i class="bi bi-calendar-event me-1"></i>기준 일자: <strong>${todayStr} (${getKstDayName()})</strong>`;
     }
+
+    const stats = calculateTodayAttendanceStats();
+    const banner = document.getElementById('teacherLiveSummaryBanner');
+    if (banner) {
+      banner.innerHTML = generateLiveSummaryBannerHtml(stats);
+    }
+
     appState.students.forEach(st => {
       const rec = appState.todayRecords[st.id];
       const curStatus = rec ? (rec.status || '출석') : '미출석';
       const curPeriod = rec ? (rec.period || '-') : '-';
       const curReason = rec ? (rec.reason || '-') : '-';
-      if (curStatus === '출석') presentCount++;
       let authBadgeHtml = '-';
       if (rec && rec.gpsAuth) {
         authBadgeHtml = rec.gpsAuth.includes('인증됨') ? `<span class="badge bg-info text-dark fw-bold px-2 py-1">${rec.gpsAuth}</span>` : `<span class="badge bg-secondary px-2 py-1">${rec.gpsAuth}</span>`;
@@ -1619,6 +2020,12 @@
 
   function renderStudentLiveAttendance() {
     const tbody = document.getElementById('studentAttendanceTbody'); if (!tbody) return; tbody.innerHTML = '';
+    const stats = calculateTodayAttendanceStats();
+    const banner = document.getElementById('studentLiveSummaryBanner');
+    if (banner) {
+      banner.innerHTML = generateLiveSummaryBannerHtml(stats);
+    }
+
     appState.students.forEach(st => {
       const rec = appState.todayRecords[st.id];
       const curStatus = rec ? (rec.status || '출석') : '미출석';
@@ -2106,18 +2513,116 @@
 
   const TEACHER_AUTH_KEY = 'class2_1_teacher_device_token';
 
+  function isTeacherAuthenticated() {
+    return appState.isTeacherLoggedIn === true;
+  }
+
+  function setAppViewMode(mode) {
+    const publicView = document.getElementById('publicHomeView');
+    const teacherView = document.getElementById('teacherDashboard');
+    const globalTeacherBadge = document.getElementById('globalTeacherActiveBadge');
+    const headerSub = document.getElementById('headerSubtitleText');
+    const returnBanner = document.getElementById('teacherReturnBanner');
+    const headerActions = document.getElementById('headerActionButtons');
+
+    const mobHome = document.getElementById('mobNavHomeBtn');
+    const mobTeacher = document.getElementById('mobNavTeacherBtn');
+    const mobTeacherIcon = document.getElementById('mobNavTeacherIcon');
+    const mobTeacherText = document.getElementById('mobNavTeacherText');
+
+    const isAuthed = isTeacherAuthenticated();
+
+    if (mode === 'teacher' && isAuthed) {
+      if (publicView) publicView.style.display = 'none';
+      if (teacherView) teacherView.style.display = 'block';
+      if (globalTeacherBadge) globalTeacherBadge.style.display = 'inline-block';
+      if (headerSub) headerSub.innerText = '담임교사 전용 종합 행정 · 출결 관리 · 온라인출결 엑셀 연동 대시보드';
+      if (returnBanner) returnBanner.style.display = 'none';
+
+      if (headerActions) {
+        headerActions.innerHTML = `
+          <button class="btn btn-outline-info btn-sm fw-bold" onclick="switchToPublicHomeView()"><i class="bi bi-house-door me-1"></i> 학급 홈 뷰 (학생 화면)</button>
+          <button class="btn btn-outline-danger btn-sm fw-bold" onclick="logoutTeacherSession()"><i class="bi bi-box-arrow-right me-1"></i> 관리자 로그아웃</button>
+        `;
+      }
+
+      if (mobHome) mobHome.classList.remove('active');
+      if (mobTeacher) {
+        mobTeacher.classList.add('active');
+        if (mobTeacherIcon) mobTeacherIcon.className = 'bi bi-shield-fill-check text-warning';
+        if (mobTeacherText) mobTeacherText.innerText = '교사포털';
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // public view
+      if (publicView) publicView.style.display = 'block';
+      if (teacherView) teacherView.style.display = 'none';
+      if (globalTeacherBadge) globalTeacherBadge.style.display = 'none';
+      if (headerSub) headerSub.innerText = '초고속 클라우드 웹앱 · 실시간 출석 · 온라인 출결 연동 · 급식 식단';
+
+      if (returnBanner) {
+        returnBanner.style.display = isAuthed ? 'flex' : 'none';
+      }
+
+      if (headerActions) {
+        if (isAuthed) {
+          headerActions.innerHTML = `
+            <button class="btn btn-warning btn-sm fw-bold" id="btnAddToHomeScreen" onclick="openPwaGuideModal()"><i class="bi bi-phone"></i> 홈 화면 추가</button>
+            <button class="btn btn-info btn-sm fw-bold shadow-sm" onclick="enterTeacherDashboardView(true)"><i class="bi bi-shield-lock-fill me-1"></i> 교사 포털로 복귀</button>
+          `;
+        } else {
+          headerActions.innerHTML = `
+            <button class="btn btn-warning btn-sm fw-bold" id="btnAddToHomeScreen" onclick="openPwaGuideModal()"><i class="bi bi-phone"></i> 홈 화면 추가</button>
+            <button class="btn btn-outline-info btn-sm fw-bold" onclick="openTeacherModal()"><i class="bi bi-shield-lock me-1"></i> 교사 관리자</button>
+          `;
+        }
+      }
+
+      if (mobHome) mobHome.classList.add('active');
+      if (mobTeacher) {
+        mobTeacher.classList.remove('active');
+        if (mobTeacherIcon) mobTeacherIcon.className = isAuthed ? 'bi bi-shield-lock-fill text-info' : 'bi bi-shield-lock';
+        if (mobTeacherText) mobTeacherText.innerText = isAuthed ? '교사관리(ON)' : '교사관리';
+      }
+    }
+  }
+
   function enterTeacherDashboardView(isAuto = false) {
-    document.getElementById('teacherDashboard').style.display = 'block';
+    if (!appState.isTeacherLoggedIn) {
+      openTeacherModal();
+      return;
+    }
+    setAppViewMode('teacher');
+
     const badge = document.getElementById('teacherSessionBadge');
     if (badge) {
       badge.style.display = localStorage.getItem(TEACHER_AUTH_KEY) ? 'inline-block' : 'none';
     }
+
     renderNoticeEditors();
     populateConfigInputs();
     refreshTeacherAttendance();
     renderOnlineReportsTable();
     renderTeacherSummaryMonthTabs();
     selectTeacherSummaryMonth(appState.selectedTeacherSummaryMonth || getKstYearMonthString());
+  }
+
+  function switchToPublicHomeView() {
+    setAppViewMode('public');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleMobileTeacherNav() {
+    const teacherView = document.getElementById('teacherDashboard');
+    if (teacherView && teacherView.style.display === 'block') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (isTeacherAuthenticated()) {
+      enterTeacherDashboardView(true);
+    } else {
+      openTeacherModal();
+    }
   }
 
   async function verifyTeacherLogin() {
@@ -2144,8 +2649,11 @@
           };
           localStorage.setItem(TEACHER_AUTH_KEY, JSON.stringify(tokenData));
         } catch (e) {}
+      } else {
+        try { localStorage.removeItem(TEACHER_AUTH_KEY); } catch(e) {}
       }
 
+      appState.isTeacherLoggedIn = true;
       enterTeacherDashboardView(false);
     } else {
       errEl.innerText = res.message || '비밀번호가 일치하지 않습니다.';
@@ -2156,45 +2664,87 @@
   async function checkTeacherAutoLogin() {
     try {
       const stored = localStorage.getItem(TEACHER_AUTH_KEY);
-      if (!stored) return;
+      if (!stored) {
+        appState.isTeacherLoggedIn = false;
+        setAppViewMode('public');
+        return;
+      }
       const parsed = JSON.parse(stored);
       if (parsed && parsed.auth) {
         const decodedPwd = decodeURIComponent(atob(parsed.auth));
         // 비동기로 백그라운드 검증
         const res = await callApi('verifyTeacherPassword', { password: decodedPwd }, true);
         if (res && res.success) {
-          enterTeacherDashboardView(true);
+          appState.isTeacherLoggedIn = true;
+          setAppViewMode('public');
         } else {
           localStorage.removeItem(TEACHER_AUTH_KEY);
+          appState.isTeacherLoggedIn = false;
+          setAppViewMode('public');
         }
       }
     } catch (e) {
       console.warn('Teacher auto-login check bypassed:', e);
+      appState.isTeacherLoggedIn = false;
+      setAppViewMode('public');
     }
+  }
+
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('appToastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    const bgClass = type === 'success' ? 'bg-success text-white' : (type === 'danger' ? 'bg-danger text-white' : 'bg-dark text-info border border-info');
+    const icon = type === 'success' ? 'bi-check-circle-fill' : (type === 'danger' ? 'bi-exclamation-triangle-fill' : 'bi-info-circle-fill');
+    toast.className = `p-3 rounded-3 shadow-lg d-flex align-items-center gap-2 fw-bold small ${bgClass}`;
+    toast.style.pointerEvents = 'auto';
+    toast.style.minWidth = '240px';
+    toast.style.maxWidth = '380px';
+    toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.6)';
+    toast.style.transition = 'all 0.3s ease';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-10px)';
+    toast.innerHTML = `<i class="bi ${icon} fs-5"></i> <span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    }, 10);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-10px)';
+      setTimeout(() => toast.remove(), 300);
+    }, 2800);
   }
 
   function logoutTeacherSession() {
-    if (confirm('이 기기에서 교사 자동 로그인을 해제하고 로그아웃하시겠습니까?')) {
+    try {
       localStorage.removeItem(TEACHER_AUTH_KEY);
-      const badge = document.getElementById('teacherSessionBadge');
-      if (badge) badge.style.display = 'none';
-      document.getElementById('teacherDashboard').style.display = 'none';
-      alert('교사 관리자 로그아웃이 완료되었습니다.');
-    }
+      sessionStorage.removeItem(TEACHER_AUTH_KEY);
+    } catch(e) {}
+    appState.isTeacherLoggedIn = false;
+    const badge = document.getElementById('teacherSessionBadge');
+    if (badge) badge.style.display = 'none';
+    const pwdInput = document.getElementById('teacherPasswordInput');
+    if (pwdInput) pwdInput.value = '';
+    const chk = document.getElementById('chkTeacherAutoLogin');
+    if (chk) chk.checked = false;
+    setAppViewMode('public');
+    showToast('교사 관리자 모드에서 로그아웃되었습니다.', 'success');
   }
 
   function openTeacherModal() {
-    // 이미 자동 로그인 토큰이 있는 경우 바로 대시보드로 진입
-    const stored = localStorage.getItem(TEACHER_AUTH_KEY);
-    if (stored) {
+    if (appState.isTeacherLoggedIn) {
       enterTeacherDashboardView(true);
       return;
     }
     document.getElementById('teacherLoginError').style.display = 'none';
     document.getElementById('teacherPasswordInput').value = '';
+    const chk = document.getElementById('chkTeacherAutoLogin');
+    if (chk) chk.checked = false;
     bootstrap.Modal.getOrCreateInstance(document.getElementById('teacherModal')).show();
   }
-  function closeTeacherPortal() { document.getElementById('teacherDashboard').style.display = 'none'; }
+  function closeTeacherPortal() { switchToPublicHomeView(); }
   
   async function generateNewPin() {
     setButtonLoading('btnGenPin', true, '생성 중...');
@@ -2208,27 +2758,51 @@
     }
   }
 
-  function loginStudent() {
+  async function loginStudent() {
     const sId = parseInt(document.getElementById('studentSelect').value, 10);
-    const pin = document.getElementById('studentPinInput').value.trim();
+    const rawPin = document.getElementById('studentPinInput').value;
+    const pin = normalizePin(rawPin);
     if (!sId || !pin) { alert('학생 번호와 식별번호를 입력하세요.'); return; }
     
     setButtonLoading('btnStudentLogin', true, '조회 중...');
-    setTimeout(() => {
-      setButtonLoading('btnStudentLogin', false);
-      const st = appState.students.find(s => s.id === sId);
-      if (st && String(st.pin) === String(pin)) {
-        appState.currentStudent = st;
-        document.getElementById('studentDashboard').style.display = 'block';
-        renderStudentNeisData(sId);
-        loadStudentSpecialRecords(sId);
-        renderStudentLiveAttendance();
-        populateConfigInputs();
-        alert(`${maskName(st.name)} 학생 출결 정보가 조회되었습니다.`);
-      } else {
-        alert('식별번호(PIN)가 올바르지 않습니다.');
+    
+    let st = appState.students.find(s => s.id === sId);
+    let isMatch = false;
+    if (st) {
+      const studentPin = normalizePin(st.pin);
+      isMatch = (studentPin === pin) || 
+                (studentPin.padStart(4, '0') === pin.padStart(4, '0')) ||
+                (parseInt(studentPin, 10) === parseInt(pin, 10) && pin.length >= 3);
+    }
+    
+    // 로컬 캐시와 일치하지 않는 경우, 서버 최신 데이터 즉시 재동기화 후 확인
+    if (!isMatch) {
+      const curToday = getKstDateString();
+      const res = await callApi('getInitialData', { todayStr: curToday });
+      if (res && res.success && res.students) {
+        appState.students = res.students;
+        st = appState.students.find(s => s.id === sId);
+        if (st) {
+          const studentPin = normalizePin(st.pin);
+          isMatch = (studentPin === pin) || 
+                    (studentPin.padStart(4, '0') === pin.padStart(4, '0')) ||
+                    (parseInt(studentPin, 10) === parseInt(pin, 10) && pin.length >= 3);
+        }
       }
-    }, 150);
+    }
+    
+    setButtonLoading('btnStudentLogin', false);
+    if (isMatch && st) {
+      appState.currentStudent = st;
+      document.getElementById('studentDashboard').style.display = 'block';
+      renderStudentNeisData(sId);
+      loadStudentSpecialRecords(sId);
+      renderStudentLiveAttendance();
+      populateConfigInputs();
+      alert(`${maskName(st.name)} 학생 출결 정보가 조회되었습니다.`);
+    } else {
+      alert('식별번호(PIN)가 올바르지 않습니다.\n(초기 기본값: 0000 / 본인 번호 확인 필요)');
+    }
   }
 
   async function loadMonthMatrix(forceReload) {
@@ -2675,8 +3249,16 @@
   }
 
   function performGpsCheckin() {
-    const pin = document.getElementById('dailyPinInput').value.trim();
-    if (!pin) { alert('오늘의 핀번호를 입력해주세요.'); return; }
+    const rawPin = document.getElementById('dailyPinInput').value;
+    const pin = normalizePin(rawPin);
+    if (!pin) { alert('칠판 또는 화면에 안내된 [오늘의 출석 핀번호 4자리]를 입력해주세요.'); return; }
+
+    if (appState.currentStudent && normalizePin(appState.currentStudent.pin) === pin) {
+      if (appState.config && normalizePin(appState.config.dailyPin) !== pin) {
+        alert('입력하신 번호는 [학생 개인 식별번호]입니다.\n\n출석 인증을 위해서는 칠판 또는 화면에 안내된 [오늘의 출석 핀번호 4자리]를 입력해주세요.');
+        return;
+      }
+    }
 
     const now = new Date();
     const curMin = now.getHours() * 60 + now.getMinutes();
@@ -2705,15 +3287,17 @@
       loadAppData();
     }, function() {
       setButtonLoading('btnGpsCheckin', false);
-      alert('위치 권한을 허용해주세요.');
-    }, { enableHighAccuracy: true });
+      alert('위치 권한(GPS)을 허용해야 출석 인증이 가능합니다.');
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
   }
 
   async function saveRosterPins() {
     setButtonLoading('btnSaveRoster', true, '저장 중...');
     const list = [];
     appState.students.forEach(st => {
-      list.push({ id: st.id, name: document.getElementById(`name_${st.id}`).value.trim(), pin: document.getElementById(`pin_${st.id}`).value.trim() });
+      const rawPin = document.getElementById(`pin_${st.id}`).value;
+      const cleanPin = normalizePin(rawPin) || '0000';
+      list.push({ id: st.id, name: document.getElementById(`name_${st.id}`).value.trim(), pin: cleanPin });
     });
     const res = await callApi('updateStudentRoster', { rosterList: list }, true);
     setButtonLoading('btnSaveRoster', false);

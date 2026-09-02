@@ -1,5 +1,5 @@
 // 2기계1반 학급시스템 PWA Service Worker (sw.js)
-const CACHE_NAME = 'class2-1-pwa-v4';
+const CACHE_NAME = 'class2-1-pwa-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

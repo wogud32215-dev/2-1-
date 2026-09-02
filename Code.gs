@@ -100,11 +100,29 @@ function doPost(e) {
 // ⚡ 초고속 캐시 엔진 (Fast Cache Layer)
 // -------------------------------------------------------------
 
+function normalizePin(pin) {
+  if (pin === null || pin === undefined) return '';
+  let str = String(pin).trim();
+  // 전각 숫자를 반각 숫자로 변환 (０-９ -> 0-9)
+  str = str.replace(/[０-９]/g, function(s) {
+    return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+  });
+  // 소수점 및 소수점 이하 제거 (예: "1234.0" -> "1234")
+  str = str.replace(/\.0+$/, '');
+  // 숫자 외 공백 및 특수문자 제거
+  str = str.replace(/[^0-9]/g, '');
+  return str;
+}
+
 function invalidateFastCache() {
   const cache = CacheService.getScriptCache();
   cache.remove('APP_INITIAL_DATA');
   cache.remove('BOARD_DATA');
   cache.remove('MEAL_DATA');
+  try {
+    const todayStr = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+    cache.remove('APP_INITIAL_DATA_' + todayStr);
+  } catch (e) {}
 }
 
 function getInitialDataFast(targetTodayStr) {
@@ -228,7 +246,13 @@ function getStudentMasterData(ss) {
   for (let i = 1; i < data.length; i++) {
     const id = parseInt(data[i][0], 10);
     if (!isNaN(id)) {
-      students.push({ id: id, name: String(data[i][1] || '').trim(), pin: String(data[i][2] || '').trim() });
+      const rawPin = data[i][2];
+      const pinStr = (rawPin !== null && rawPin !== undefined) ? normalizePin(rawPin) : '0000';
+      students.push({ 
+        id: id, 
+        name: String(data[i][1] || '').trim(), 
+        pin: pinStr || '0000' 
+      });
     }
   }
   return students;
@@ -684,6 +708,7 @@ function saveTimeLockSettings(startTime, endTime, radius) {
     if (!updatedKeys.includes('출석마감시간')) configSheet.appendRow(['출석마감시간', endTime]);
     if (!updatedKeys.includes('허용반경m')) configSheet.appendRow(['허용반경m', radius]);
     SpreadsheetApp.flush();
+    invalidateFastCache();
     return { success: true, message: '출석 시간 및 반경 설정이 저장되었습니다.' };
   } finally {
     lock.releaseLock();
@@ -857,11 +882,15 @@ function updateStudentRoster(rosterList) {
     const writeData = [['번호', '이름', '개인식별번호']];
 
     rosterList.sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
-    rosterList.forEach(st => writeData.push([st.id, String(st.name).trim(), String(st.pin).trim()]));
+    rosterList.forEach(st => {
+      const p = normalizePin(st.pin) || '0000';
+      writeData.push([st.id, String(st.name).trim(), "'" + p]);
+    });
 
     studentSheet.clearContents();
     studentSheet.getRange(1, 1, writeData.length, 3).setValues(writeData);
     SpreadsheetApp.flush();
+    invalidateFastCache();
     return { success: true, message: '학생 명단이 저장되었습니다.' };
   } finally {
     lock.releaseLock();
@@ -880,13 +909,16 @@ function generateDailyPin() {
   const configRows = configSheet.getDataRange().getValues();
 
   for (let i = 1; i < configRows.length; i++) {
-    if (configRows[i][0] === '오늘출석핀') {
-      configSheet.getRange(i + 1, 2).setValue(pin);
+    if (String(configRows[i][0]).trim() === '오늘출석핀') {
+      configSheet.getRange(i + 1, 2).setValue("'" + pin);
       SpreadsheetApp.flush();
+      invalidateFastCache();
       return { success: true, pin: pin };
     }
   }
-  configSheet.appendRow(['오늘출석핀', pin]);
+  configSheet.appendRow(['오늘출석핀', "'" + pin]);
+  SpreadsheetApp.flush();
+  invalidateFastCache();
   return { success: true, pin: pin };
 }
 
@@ -922,19 +954,37 @@ function submitSelfAttendance(studentId, inputPin, userLat, userLng) {
     if (currentMinVal < startMinVal || currentMinVal > endMinVal) {
       return { success: false, message: `현재는 자율 출석 시간이 아닙니다. (허용: ${startTime} ~ ${endTime})` };
     }
-    if (!targetPin || targetPin !== String(inputPin).trim()) {
-      return { success: false, message: '오늘의 핀번호가 올바르지 않습니다.' };
-    }
 
-    const distance = calculateDistance(userLat, userLng, schoolLat, schoolLng);
-    if (distance > radius) {
-      return { success: false, message: `학교 범위를 벗어났습니다. (${Math.round(distance)}m / 허용: ${radius}m)` };
+    const cleanTargetPin = normalizePin(targetPin);
+    const cleanInputPin = normalizePin(inputPin);
+
+    if (!cleanTargetPin) {
+      return { success: false, message: '오늘의 출석 핀번호가 아직 생성되지 않았습니다. 담임선생님께 확인해주세요.' };
     }
 
     const students = getStudentMasterData(ss);
     const sId = parseInt(studentId, 10);
     const studentObj = students.find(s => s.id === sId);
     const studentName = studentObj ? studentObj.name : `학생${sId}`;
+
+    // 학생이 본인의 개인 식별번호(PIN)를 입력했는지 확인하여 명확한 오류 안내 제공
+    if (studentObj && normalizePin(studentObj.pin) === cleanInputPin && cleanInputPin !== cleanTargetPin) {
+      return { success: false, message: '개인 식별번호가 아닌, 칠판/화면에 게시된 [오늘의 출석 핀번호 4자리]를 입력해주세요.' };
+    }
+
+    // 핀번호 일치 검사 (정확한 일치 or 4자리 0패딩 호환)
+    const isPinMatch = (cleanTargetPin === cleanInputPin) ||
+                       (cleanTargetPin.padStart(4, '0') === cleanInputPin.padStart(4, '0')) ||
+                       (parseInt(cleanTargetPin, 10) === parseInt(cleanInputPin, 10) && cleanInputPin.length >= 3);
+
+    if (!isPinMatch) {
+      return { success: false, message: '오늘의 출석 핀번호가 일치하지 않습니다. (칠판/화면의 4자리 번호를 확인하세요)' };
+    }
+
+    const distance = calculateDistance(userLat, userLng, schoolLat, schoolLng);
+    if (distance > radius) {
+      return { success: false, message: `학교 범위를 벗어났습니다. (${Math.round(distance)}m / 허용: ${radius}m)` };
+    }
 
     const recordSheet = ss.getSheetByName('출결기록');
     const todayStr = Utilities.formatDate(now, 'Asia/Seoul', 'yyyy-MM-dd');
