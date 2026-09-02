@@ -598,20 +598,6 @@
   <!-- 🏠 [VIEW 1] 학생 / 학부모 공개 학급 홈 뷰 -->
   <!-- ========================================== -->
   <div id="publicHomeView">
-    <!-- 👨‍🏫 교사 관리자 복귀 알림 배너 (학급 홈 뷰 임시 확인 중일 때 노출) -->
-    <div id="teacherReturnBanner" class="alert alert-info py-2 px-3 mb-3 d-flex justify-content-between align-items-center shadow-sm flex-wrap gap-2" style="display:none; border-radius:14px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35);">
-      <div class="d-flex align-items-center gap-2">
-        <span class="fs-5">👁️</span>
-        <div>
-          <strong class="text-info">학생 / 학부모 공개 홈 화면을 보고 있습니다.</strong>
-          <span class="text-secondary small d-none d-md-inline ms-1">(교사 관리자 세션이 유지되고 있습니다)</span>
-        </div>
-      </div>
-      <button class="btn btn-info btn-sm fw-bold px-3" onclick="enterTeacherDashboardView(true)">
-        <i class="bi bi-shield-lock-fill me-1"></i> 관리자 포털로 복귀
-      </button>
-    </div>
-
     <!-- 🚀 D-Day 카운터 배너 -->
     <div id="ddayBannerContainer" class="dday-banner-container"></div>
 
@@ -2522,7 +2508,6 @@
     const teacherView = document.getElementById('teacherDashboard');
     const globalTeacherBadge = document.getElementById('globalTeacherActiveBadge');
     const headerSub = document.getElementById('headerSubtitleText');
-    const returnBanner = document.getElementById('teacherReturnBanner');
     const headerActions = document.getElementById('headerActionButtons');
 
     const mobHome = document.getElementById('mobNavHomeBtn');
@@ -2537,7 +2522,6 @@
       if (teacherView) teacherView.style.display = 'block';
       if (globalTeacherBadge) globalTeacherBadge.style.display = 'inline-block';
       if (headerSub) headerSub.innerText = '담임교사 전용 종합 행정 · 출결 관리 · 온라인출결 엑셀 연동 대시보드';
-      if (returnBanner) returnBanner.style.display = 'none';
 
       if (headerActions) {
         headerActions.innerHTML = `
@@ -2559,10 +2543,6 @@
       if (teacherView) teacherView.style.display = 'none';
       if (globalTeacherBadge) globalTeacherBadge.style.display = 'none';
       if (headerSub) headerSub.innerText = '초고속 클라우드 웹앱 · 실시간 출석 · 온라인 출결 연동 · 급식 식단';
-
-      if (returnBanner) {
-        returnBanner.style.display = isAuthed ? 'flex' : 'none';
-      }
 
       if (headerActions) {
         if (isAuthed) {
@@ -2676,7 +2656,7 @@
         const res = await callApi('verifyTeacherPassword', { password: decodedPwd }, true);
         if (res && res.success) {
           appState.isTeacherLoggedIn = true;
-          setAppViewMode('public');
+          enterTeacherDashboardView(true);
         } else {
           localStorage.removeItem(TEACHER_AUTH_KEY);
           appState.isTeacherLoggedIn = false;
