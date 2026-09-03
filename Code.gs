@@ -102,7 +102,7 @@ function doPost(e) {
 
 function normalizePin(pin) {
   if (pin === null || pin === undefined) return '';
-  let str = String(pin).trim();
+  let str = String(pin).replace(/[\s\u00A0\u200B\uFEFF\r\n\t'"`,]+/g, '').trim();
   // 전각 숫자를 반각 숫자로 변환 (０-９ -> 0-9)
   str = str.replace(/[０-９]/g, function(s) {
     return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
@@ -110,8 +110,7 @@ function normalizePin(pin) {
   // 소수점 및 소수점 이하 제거 (예: "1234.0" -> "1234")
   str = str.replace(/\.0+$/, '');
   // 숫자 외 공백 및 특수문자 제거
-  str = str.replace(/[^0-9]/g, '');
-  return str;
+  return str.replace(/[^0-9]/g, '');
 }
 
 function invalidateFastCache() {
@@ -584,6 +583,46 @@ function saveNoticeAndDDayData(payload) {
   }
 }
 
+function fetchAllSpecialRecords(ssInstance) {
+  try {
+    const ss = ssInstance || setupSpreadsheet();
+    const recordSheet = ss.getSheetByName('출결기록');
+    const onlineReports = fetchOnlineReportsMap(ss);
+    if (!recordSheet || recordSheet.getLastRow() <= 1) return [];
+
+    const rows = recordSheet.getDataRange().getValues();
+    const colMap = getColumnIndexMap(rows[0]);
+    const specials = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const status = String(rows[i][colMap.status] || '출석').trim();
+      if (status !== '출석' && status !== '미출석' && status !== '') {
+        const rawDate = rows[i][colMap.date];
+        const rDate = (rawDate instanceof Date) 
+          ? Utilities.formatDate(rawDate, 'Asia/Seoul', 'yyyy-MM-dd') 
+          : String(rawDate).trim();
+        const sId = parseInt(rows[i][colMap.id], 10);
+        if (!isNaN(sId)) {
+          const onlineInfo = (onlineReports[sId] && onlineReports[sId][rDate]) ? onlineReports[sId][rDate] : null;
+          specials.push({
+            studentId: sId,
+            date: rDate,
+            time: formatDateToCustomString(rows[i][colMap.time]),
+            status: status,
+            period: (colMap.period !== -1 && rows[i][colMap.period]) ? String(rows[i][colMap.period]) : '종일',
+            reason: (colMap.reason !== -1 && rows[i][colMap.reason]) ? String(rows[i][colMap.reason]) : '-',
+            onlineReport: onlineInfo
+          });
+        }
+      }
+    }
+    specials.sort((a, b) => b.date.localeCompare(a.date));
+    return specials;
+  } catch (err) {
+    return [];
+  }
+}
+
 function getStudentAttendanceHistory(studentId) {
   try {
     const ss = setupSpreadsheet();
@@ -607,6 +646,7 @@ function getStudentAttendanceHistory(studentId) {
 
           const onlineInfo = (onlineReports[sId] && onlineReports[sId][rDate]) ? onlineReports[sId][rDate] : null;
           specials.push({
+            studentId: sId,
             date: rDate,
             time: formatDateToCustomString(rows[i][colMap.time]),
             status: status,
@@ -682,6 +722,7 @@ function getInitialData(targetTodayStr) {
     neisData: neisData,
     onlineReports: fetchOnlineReportsMap(ss),
     todayRecords: fetchTodayAttendanceMap(todayStr, ss),
+    allSpecialRecords: fetchAllSpecialRecords(ss),
     meals: fetchMealData(ss),
     boardData: fetchNoticeAndDDayData(ss),
     todayStr: todayStr,
@@ -951,7 +992,7 @@ function submitSelfAttendance(studentId, inputPin, userLat, userLng) {
     const startMinVal = parseInt(sParts[0], 10) * 60 + parseInt(sParts[1] || '0', 10);
     const endMinVal = parseInt(eParts[0], 10) * 60 + parseInt(eParts[1] || '0', 10);
 
-    if (currentMinVal < startMinVal || currentMinVal > endMinVal) {
+    if (currentMinVal < startMinVal - 3 || currentMinVal > endMinVal + 3) {
       return { success: false, message: `현재는 자율 출석 시간이 아닙니다. (허용: ${startTime} ~ ${endTime})` };
     }
 
@@ -966,13 +1007,14 @@ function submitSelfAttendance(studentId, inputPin, userLat, userLng) {
     const sId = parseInt(studentId, 10);
     const studentObj = students.find(s => s.id === sId);
     const studentName = studentObj ? studentObj.name : `학생${sId}`;
+    const studentPin = (studentObj && studentObj.pin) ? normalizePin(studentObj.pin) : '0000';
 
-    // 학생이 본인의 개인 식별번호(PIN)를 입력했는지 확인하여 명확한 오류 안내 제공
-    if (studentObj && normalizePin(studentObj.pin) === cleanInputPin && cleanInputPin !== cleanTargetPin) {
-      return { success: false, message: '개인 식별번호가 아닌, 칠판/화면에 게시된 [오늘의 출석 핀번호 4자리]를 입력해주세요.' };
+    // 학생이 본인의 개인 식별번호(PIN 또는 기본 0000)를 입력했는지 확인하여 명확한 오류 안내 제공
+    if ((studentPin === cleanInputPin || cleanInputPin === '0000') && cleanInputPin !== cleanTargetPin) {
+      return { success: false, message: '개인 식별번호가 아닌, 칠판/교실 TV에 안내된 [오늘의 출석 핀번호 4자리]를 입력해주세요.' };
     }
 
-    // 핀번호 일치 검사 (정확한 일치 or 4자리 0패딩 호환)
+    // 핀번호 일치 검사 (정확한 일치, 4자리 0패딩 호환, 정수값 호환)
     const isPinMatch = (cleanTargetPin === cleanInputPin) ||
                        (cleanTargetPin.padStart(4, '0') === cleanInputPin.padStart(4, '0')) ||
                        (parseInt(cleanTargetPin, 10) === parseInt(cleanInputPin, 10) && cleanInputPin.length >= 3);

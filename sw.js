@@ -1,8 +1,9 @@
 // 2기계1반 학급시스템 PWA Service Worker (sw.js)
-const CACHE_NAME = 'class2-1-pwa-v6';
+const CACHE_NAME = 'class2-1-pwa-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/academicScheduleDefault.js',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'
