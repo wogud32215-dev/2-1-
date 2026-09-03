@@ -2,7 +2,20 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta id="appViewportMeta" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover">
+  <script>
+    // 🖥️ / 📱 저장된 뷰 모드(PC 모드 vs 모바일 모드) 즉시 선반영 (삼성인터넷 바로가기 등에서 화면 깜빡임 방지)
+    (function() {
+      try {
+        var mode = localStorage.getItem('app_preferred_view_mode');
+        if (mode === 'pc') {
+          var vp = document.getElementById('appViewportMeta');
+          if (vp) vp.setAttribute('content', 'width=1200, initial-scale=0.32, minimum-scale=0.2, maximum-scale=3.0, user-scalable=yes');
+          document.documentElement.classList.add('pc-view-mode');
+        }
+      } catch(e) {}
+    })();
+  </script>
   <script>
     // Ensure window.fetch has both a getter and setter to prevent "Cannot set property fetch of #<Window> which has only a getter"
     (function() {
@@ -873,6 +886,64 @@
     .mobile-nav-btn:active {
       transform: scale(0.92);
     }
+
+    /* 🖥️ PC 버전 강제 모드 스타일 (모바일 및 삼성인터넷 바로가기에서 PC모드 선택 시) */
+    html.pc-view-mode, body.pc-view-mode {
+      min-width: 1200px !important;
+      width: 1200px !important;
+      margin: 0 auto !important;
+      overflow-x: auto !important;
+      -webkit-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+    }
+    html.pc-view-mode .container {
+      min-width: 1140px !important;
+      max-width: 1180px !important;
+      width: 1180px !important;
+      padding-left: 15px !important;
+      padding-right: 15px !important;
+    }
+    html.pc-view-mode body {
+      padding-bottom: 50px !important;
+    }
+    html.pc-view-mode .mobile-quick-nav {
+      display: none !important;
+    }
+    html.pc-view-mode .calendar-day-cell {
+      min-height: 105px !important;
+    }
+
+    /* 📱/🖥️ 플로팅 화면 모드 전환 버튼 (PC 모드 활성화 시 모바일 기기 화면 우측 하단에 고정 노출) */
+    .floating-mode-switch-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 20px;
+      z-index: 1050;
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: #ffffff;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      border-radius: 50px;
+      padding: 10px 18px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6);
+      display: none;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+    }
+    .floating-mode-switch-btn:hover, .floating-mode-switch-btn:focus {
+      background: linear-gradient(135deg, #0369a1, #075985);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 26px rgba(2, 132, 199, 0.65);
+      color: #fff;
+    }
+    html.pc-view-mode .floating-mode-switch-btn {
+      display: inline-flex !important;
+    }
   </style>
 </head>
 <body>
@@ -891,9 +962,15 @@
       </div>
       <p class="text-secondary small mb-0" id="headerSubtitleText">초고속 클라우드 웹앱 · 실시간 출석 · 온라인 출결 연동 · 급식 식단</p>
     </div>
-    <div class="d-flex gap-2 align-items-center flex-wrap" id="headerActionButtons">
-      <button class="btn btn-warning btn-sm fw-bold" id="btnAddToHomeScreen" onclick="openPwaGuideModal()"><i class="bi bi-phone"></i> 홈 화면 추가</button>
-      <button class="btn btn-outline-info btn-sm fw-bold" id="btnHeaderTeacherAction" onclick="openTeacherModal()"><i class="bi bi-shield-lock me-1"></i>교사 관리자</button>
+    <div class="d-flex gap-2 align-items-center flex-wrap" id="headerControlsWrapper">
+      <!-- 🖥️/📱 PC 모드 vs 모바일 모드 즉시 전환 토글 버튼 -->
+      <button class="btn btn-outline-light btn-sm fw-bold shadow-sm" id="btnToggleDesktopMode" onclick="toggleDesktopMobileMode()" title="화면 모드 전환 (PC모드 / 모바일모드)">
+        <i class="bi bi-display me-1" id="btnToggleDesktopModeIcon"></i><span id="btnToggleDesktopModeText">PC버전</span>
+      </button>
+      <div class="d-flex gap-2 align-items-center flex-wrap" id="headerActionButtons">
+        <button class="btn btn-warning btn-sm fw-bold" id="btnAddToHomeScreen" onclick="openPwaGuideModal()"><i class="bi bi-phone"></i> 홈 화면 추가</button>
+        <button class="btn btn-outline-info btn-sm fw-bold" id="btnHeaderTeacherAction" onclick="openTeacherModal()"><i class="bi bi-shield-lock me-1"></i>교사 관리자</button>
+      </div>
     </div>
   </div>
 
@@ -1489,6 +1566,19 @@
       </div>
     </div>
   </div>
+
+  <!-- 🌐 하단 푸터 & 화면 모드 전환 바 -->
+  <footer class="mt-4 pt-3 pb-3 text-center border-top border-secondary border-opacity-25 text-secondary">
+    <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap mb-2">
+      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 fw-bold" id="btnFooterToggleMode" onclick="toggleDesktopMobileMode()">
+        <i class="bi bi-display me-1" id="btnFooterToggleModeIcon"></i><span id="btnFooterToggleModeText">PC버전으로 보기</span>
+      </button>
+      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 fw-bold" onclick="openPwaGuideModal()">
+        <i class="bi bi-phone me-1"></i>홈 화면 바로가기 추가
+      </button>
+    </div>
+    <p class="small text-muted mb-0">2026~2027 학년도 2기계1반 스마트 학급 포털 시스템</p>
+  </footer>
 </div>
 
 <!-- 📱 모바일 전용 퀵 내비게이션 바 (뷰 전환 스마트 연동) -->
@@ -1515,6 +1605,12 @@
   </button>
 </nav>
 
+<!-- 📱/🖥️ PC 모드 전환 시 우측 하단 플로팅 복귀 버튼 (언제든 1클릭으로 모바일 복귀 가능) -->
+<button class="floating-mode-switch-btn" id="floatingModeSwitchBtn" onclick="toggleDesktopMobileMode()" title="모바일 화면으로 복귀">
+  <i class="bi bi-phone"></i>
+  <span>모바일 화면으로 전환</span>
+</button>
+
 <!-- 📲 홈 화면 추가 안내 모달 -->
 <div class="modal fade" id="pwaGuideModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -1540,6 +1636,10 @@
             <li class="mb-1">메뉴를 아래로 내려 <strong>[홈 화면에 추가]</strong>를 선택합니다.</li>
             <li>우측 상단의 <strong>[추가]</strong>를 누르면 바탕화면에 앱 아이콘이 생성됩니다.</li>
           </ol>
+        </div>
+        <div class="p-3 mt-3 bg-black rounded border border-info">
+          <h6 class="text-info fw-bold mb-1"><i class="bi bi-display"></i> 스마트폰에서 PC버전 화면으로 보기</h6>
+          <p class="small text-light mb-0">홈 화면 바로가기로 접속했을 때 화면 상단(또는 하단)의 <strong>[PC버전]</strong> 버튼을 누르면 PC와 동일한 넓은 화면으로 전환되며, 캘린더와 표를 자유롭게 확대/축소(Pinch Zoom)하며 보실 수 있습니다.</p>
         </div>
       </div>
       <div class="modal-footer border-secondary">
@@ -2027,7 +2127,118 @@
     loadAppData();
     initServiceWorkerAndNetworkStatus();
     checkTeacherAutoLogin();
+    initViewMode();
   };
+
+  // 🖥️ / 📱 PC 모드 vs 모바일 모드 동적 전환 관리 (모바일 삼성인터넷 바로가기 PWA 완벽 지원)
+  const VIEW_MODE_KEY = 'app_preferred_view_mode';
+
+  function initViewMode() {
+    try {
+      const savedMode = localStorage.getItem(VIEW_MODE_KEY);
+      if (savedMode === 'pc') {
+        applyViewMode('pc', false);
+      } else {
+        applyViewMode('mobile', false);
+      }
+    } catch(e) {
+      console.warn('initViewMode error:', e);
+    }
+  }
+
+  function toggleDesktopMobileMode() {
+    try {
+      const isCurrentlyPC = document.documentElement.classList.contains('pc-view-mode') || 
+                            localStorage.getItem(VIEW_MODE_KEY) === 'pc';
+      const newMode = isCurrentlyPC ? 'mobile' : 'pc';
+      applyViewMode(newMode, true);
+
+      if (newMode === 'pc') {
+        showToast('🖥️ PC버전(데스크톱 모드)으로 전환되었습니다. 화면을 자유롭게 확대/축소할 수 있습니다.', 'info');
+      } else {
+        showToast('📱 모바일 최적화 화면으로 전환되었습니다.', 'success');
+      }
+    } catch (err) {
+      console.error('toggleDesktopMobileMode error:', err);
+    }
+  }
+
+  function applyViewMode(mode, save = true) {
+    const isPC = (mode === 'pc');
+    if (save) {
+      try {
+        localStorage.setItem(VIEW_MODE_KEY, isPC ? 'pc' : 'mobile');
+      } catch(e) {}
+    }
+
+    let viewportMeta = document.getElementById('appViewportMeta');
+    if (!viewportMeta) {
+      viewportMeta = document.querySelector('meta[name="viewport"]');
+      if (viewportMeta) viewportMeta.id = 'appViewportMeta';
+    }
+
+    if (isPC) {
+      document.documentElement.classList.add('pc-view-mode');
+      document.body.classList.add('pc-view-mode');
+      if (viewportMeta) {
+        viewportMeta.setAttribute('content', 'width=1200, initial-scale=0.32, minimum-scale=0.2, maximum-scale=3.0, user-scalable=yes');
+      }
+    } else {
+      document.documentElement.classList.remove('pc-view-mode');
+      document.body.classList.remove('pc-view-mode');
+      if (viewportMeta) {
+        viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover');
+      }
+    }
+
+    updateViewModeUI(isPC);
+
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
+  }
+
+  function updateViewModeUI(isPC) {
+    // 1. 글로벌 상단 헤더 버튼
+    const headerBtn = document.getElementById('btnToggleDesktopMode');
+    const headerIcon = document.getElementById('btnToggleDesktopModeIcon');
+    const headerText = document.getElementById('btnToggleDesktopModeText');
+    if (headerBtn && headerIcon && headerText) {
+      if (isPC) {
+        headerBtn.className = 'btn btn-info btn-sm fw-bold shadow-sm';
+        headerIcon.className = 'bi bi-phone me-1';
+        headerText.innerText = '모바일버전';
+        headerBtn.setAttribute('title', '모바일 모드로 전환');
+      } else {
+        headerBtn.className = 'btn btn-outline-light btn-sm fw-bold shadow-sm';
+        headerIcon.className = 'bi bi-display me-1';
+        headerText.innerText = 'PC버전';
+        headerBtn.setAttribute('title', 'PC버전(데스크톱 모드)으로 전환');
+      }
+    }
+
+    // 2. 하단 푸터 버튼
+    const footerBtn = document.getElementById('btnFooterToggleMode');
+    const footerIcon = document.getElementById('btnFooterToggleModeIcon');
+    const footerText = document.getElementById('btnFooterToggleModeText');
+    if (footerBtn && footerIcon && footerText) {
+      if (isPC) {
+        footerBtn.className = 'btn btn-outline-info btn-sm rounded-pill px-3 py-1 fw-bold';
+        footerIcon.className = 'bi bi-phone me-1';
+        footerText.innerText = '모바일버전으로 보기';
+      } else {
+        footerBtn.className = 'btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 fw-bold';
+        footerIcon.className = 'bi bi-display me-1';
+        footerText.innerText = 'PC버전으로 보기';
+      }
+    }
+
+    // 3. 플로팅 복귀 버튼
+    const floatingBtn = document.getElementById('floatingModeSwitchBtn');
+    if (floatingBtn) {
+      floatingBtn.style.display = isPC ? 'inline-flex' : 'none';
+    }
+  }
 
   // 📲 PWA Service Worker 및 오프라인 상태 모니터링 엔진
   function initServiceWorkerAndNetworkStatus() {
