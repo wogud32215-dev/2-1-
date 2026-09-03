@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <script>
     // Ensure window.fetch has both a getter and setter to prevent "Cannot set property fetch of #<Window> which has only a getter"
     (function() {
@@ -64,7 +65,7 @@
       background-attachment: fixed;
       color: var(--text-main);
       font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding-bottom: 80px;
+      padding-bottom: calc(85px + env(safe-area-inset-bottom, 0px));
       -webkit-font-smoothing: antialiased;
       letter-spacing: -0.015em;
     }
@@ -809,44 +810,68 @@
     .live-chip-absent { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
     .live-chip-unregistered { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
     
-    /* 📱 모바일 하단 플로팅 퀵바 */
+    /* 📱 모바일 하단 플로팅 퀵바 (화면 하단 항시 고정 및 모바일 터치 최적화) */
     .mobile-quick-nav {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(15, 23, 42, 0.95);
-      backdrop-filter: blur(12px);
-      border-top: 1px solid var(--border-color);
+      width: 100%;
+      background: rgba(11, 17, 32, 0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
       display: flex;
       justify-content: space-around;
-      padding: 8px 12px;
-      z-index: 1030;
-      box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+      align-items: center;
+      padding-top: 6px;
+      padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+      padding-left: max(6px, env(safe-area-inset-left, 0px));
+      padding-right: max(6px, env(safe-area-inset-right, 0px));
+      z-index: 1040;
+      box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.55);
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
     }
     @media (min-width: 992px) {
       .mobile-quick-nav {
-        display: none;
+        display: none !important;
       }
     }
     .mobile-nav-btn {
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
-      color: var(--text-muted);
+      justify-content: center;
+      gap: 2px;
+      color: #94a3b8;
       text-decoration: none;
       font-size: 0.72rem;
       font-weight: 600;
       background: transparent;
       border: none;
-      padding: 4px 8px;
+      padding: 4px 2px;
+      min-height: 48px;
+      transition: color 0.15s ease, transform 0.1s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .mobile-nav-btn i {
-      font-size: 1.15rem;
+      font-size: 1.25rem;
+      line-height: 1;
+      transition: transform 0.15s ease, color 0.15s ease;
     }
     .mobile-nav-btn.active, .mobile-nav-btn:hover {
-      color: var(--accent-blue);
+      color: #38bdf8;
+    }
+    .mobile-nav-btn.active i {
+      color: #38bdf8;
+      transform: translateY(-2px);
+      filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));
+    }
+    .mobile-nav-btn:active {
+      transform: scale(0.92);
     }
   </style>
 </head>
@@ -1064,15 +1089,6 @@
 
     <!-- 📅 [탭 2] 2026~2027 학사일정 탭 콘텐츠 -->
     <div id="studentScheduleTabContent" style="display: none;">
-      <!-- 🌟 주요 학사일정 D-Day 배너 -->
-      <div class="card-custom mb-3 p-3">
-        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-          <h6 class="fw-bold mb-0 text-warning"><i class="bi bi-stars me-1"></i> 다가오는 주요 학사일정 D-Day</h6>
-          <span class="badge bg-dark border border-secondary text-info"><i class="bi bi-clock-history me-1"></i>실시간 카운트다운</span>
-        </div>
-        <div id="scheduleUpcomingDDayContainer" class="d-flex gap-2 overflow-x-auto py-1"></div>
-      </div>
-
       <!-- 🗓️ 학사일정 메인 카드 -->
       <div class="card-custom">
         <!-- 상단 헤더 & 학년도/월 네비게이션 -->
